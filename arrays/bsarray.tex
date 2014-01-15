@@ -1,0 +1,38 @@
+\subsection{\emph{bs\_array}}
+
+In N3810~\cite{n3810} a minimal \emph{basic stack-allocated} array is proposed.
+The idea is that this class relates to an array with dynamic extent as
+\verb+std::array+ relates to an array with static extent.
+
+Here is a possible outline taken from N3810.
+
+\begin{lstlisting}
+template<class T>
+class bs_array { // basic stack-allocated array
+  using value_type = T;
+
+  bs_array(int n); // n elements
+  // default copy, no move, maybe copy to vector/other_containers
+
+  T& operator[](int i); 
+  const T& operator(int i) const; 
+  T& at(int i); 
+  const T& at(int i) const; 
+
+  T* begin() { return a; } 
+  const T* begin() const { return a; }
+  T* begin() { return a+n; }
+  const T* begin() const { return a+n; }
+
+  int size();
+
+  T* data();
+
+private:
+  T a[n]; // for exposition only, a is stack allocated
+};
+\end{lstlisting}
+
+This approach addresses our concern about allocation as \verb+bs\_array+ is
+guaranteed to be allocated on the stack. However, it shares with \verb+dynarray+
+the need for compiler support.

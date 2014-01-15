@@ -1,0 +1,39 @@
+\subsection{\emph{dynarray}}
+
+A class providing a dynamic array was proposed in N3532~\cite{n3532} and adopted
+into the working draft as N3662~\cite{n3662}. However, this was not first time
+such a class was proposed dating back to N2648~\cite{n2648} in 2008.
+
+While the proposal claims that a \emph{pure-library} implementation is possible,
+such an implementation would be probably based on dynamic memory allocation. To
+provide stack allocation of automatic variables compiler magic is needed by
+giving the compiler the freedom of implementing construction and destruction of
+\emph{dynarray} directly.
+
+While the border between the library and the compiler has been crossed before
+(e.g. \verb+std::initializer\_list+) we believe alternate solutions can be used
+here. 
+
+In any case, it is true that \verb+dynarray+ solves the interface problems that
+run-time sized arrays would be promoting and better code can be written.
+
+\begin{lstlisting}
+string g(const dynarray<int> & v) {
+  std::string result;
+  for (auto x : v) {
+    result += std::to_string(x);
+  }
+  return result;
+}
+
+string f(int n) {
+  dynarray<int> v; // Where is this allocated?
+  std::iota(v);
+  return g(v, n);
+} 
+\end{lstlisting}
+
+However, a more serious concern is that the user has no guarantee whether
+a \verb+dynarray+ object will allocated in automatic or dynamic storage.
+
+

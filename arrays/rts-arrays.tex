@@ -1,0 +1,70 @@
+\subsection{Runtime-sized arrays with atuomatic storage}
+
+As stated by Jens Maurer in \emph{Runtime-sized arrays with automatic storage
+duration} series (N3366~\cite{n3366}, N3412~\cite{n3412}, N3467~\cite{n3467},
+N3497~\cite{n3497}, N3639~\cite{n3639}) there are situations where a \emph{user wishes to
+allocate a local array whose size is not known at compile-time, but at runtime
+only}.
+
+This kind of uses can be be handled by a \verb+std::vector+ usage. However, such
+approach may lead to a serious performance penaly derived from dynamic memory
+allocation and deallocation
+
+\begin{lstlisting}
+string f(int n) {
+  std::vector<int> v(n); // std::vector allocation
+  std::iota(v.begin(), v.end(), 1);
+  std::string result;
+  for (auto x : v) {
+    result += std::to_string(x);
+  }
+  return result;
+} // std::vector deallocation
+\end{lstlisting}
+
+The use of a run-time sized array with automatic storage allows to avoid dynamic
+memory allocation by using automatic storage.
+
+\begin{lstlisting}
+string f(int n) {
+  int v[n];
+  std::iota(v, v + n, 1);
+  std::string result;
+  for (auto x : v) {
+    result += std::to_string(x);
+  }
+  return result;
+} 
+\end{lstlisting}
+
+This approach promotes the use of \emph{pointer-plus-size} interface when arrays
+are passed around.
+
+\begin{lstlisting}
+string g(int * v, std::size_t n) {
+  std::string result;
+  for (std::size_t i=0; i!=n; ++i) {
+    result += std::to_string(v[i]);
+  }
+  return result;
+}
+
+string f(int n) {
+  int v[n];
+  std::iota(v, v + n, 1);
+  return g(v, n);
+} 
+\end{lstlisting}
+
+Stroustrup lists in N3810~\cite{n3810} reasons why that interface promotion is not desirable
+including:
+
+\begin{itemize}
+
+\item The number of elements of a run-time sized array is not available and the
+user needs to \emph{remember} it.
+
+\item The type used to access elements can implicitly change after the array has
+decayed to a pointer.
+
+\end{itemize}

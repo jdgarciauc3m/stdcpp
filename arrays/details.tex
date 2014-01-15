@@ -1,0 +1,117 @@
+\section{Details}
+
+In this section we discuss additiional details on the proposal.
+
+\subsection{Initialization options}
+
+The syntax needs to support several options for initialization as a balance
+needs to be kept between performance and flexibility. For this reason we have
+kept separate the specification of the data member size and its value in the
+constructor.
+
+If no values are provided in the initializer for the array data member, each
+element in the array is \emph{value-initialized}.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) : 
+    v[n]{}, // v[i] = 0.0
+    w[n]{}  // w[i] = point{}
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+
+If braces are not present after the size specification, each element is
+\emph{default-initialized} (including no initialization for scalars):
+
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) : 
+    v[n], // v[i] is not initialized
+    w[n]  // w[i] = point{}
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+
+It is also provide an \emph{initalizer-list} in the data member initializer:
+
+\begin{lstlisting}
+class vec {
+public:
+  vec() : 
+    v[2]{-1.0, 2.5}, 
+    w[2]{ {1.0,1.0}, {2.5,2.5} }
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+
+\subsection{RTSB objects as data members}
+
+If a data member of a class is of a type that is a \emph{run-time size bound class}, the the new 
+class is also a \emph{run-time size bound class} and the same restrictions are
+applied to it. In particular, its constructor also needs to be defined inline.
+
+\begin{lstlisting}
+class A {
+  A(int n) : v[n]{} {}
+private:
+  double[] v;
+};
+
+class B {
+  B() : a{4} {}
+private:
+  A a;
+};
+\end{lstlisting}
+
+The same applies to a inheritance.
+
+\begin{lstlisting}
+class A {
+  A(int n) : v[n]{} {}
+private:
+  double[] v;
+};
+
+class B : public A {
+  B() : A{4} {}
+};
+\end{lstlisting}
+
+\subsection{Contexts of use}
+
+We propose that the only use of a \emph{run-time size bound class} object is as
+an automatic variable. In particular, we propose to ban any use implying dynamic
+memory
+
+\begin{lstlisting}
+class A {
+public:
+  A(int n) : v[n]{} {}
+public:
+  double[] v;
+};
+
+void f() {
+  A a{4}; // OK;
+  A * p = new A{4}; // Error
+  vector<A> w; // Error
+}
+\end{lstlisting}
+
+\subsection{\emph{sizeof}}
+
+Operator \verb+sizeof+ is not supported on any type or object of a \emph{run-time size bound class}.

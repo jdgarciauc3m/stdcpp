@@ -1,0 +1,147 @@
+\section{Proposal}
+
+In this paper we present a proposal of what N3810~\cite{n3810} names as the
+\emph{array constructors} proposal which was originally suggested by J. Daniel
+Garcia in the \emph{-ext} mailing list. Ellaborations on this idea were later
+made by others including Bjarne Stroustrup, David Vandevoorde and Lawrence
+Crowl.
+
+\subsection{Run-time bound array data members}
+
+The core idea is to allow that a class is allowed to have one or more run-time
+bound array data-members. For those array data members the size is not specified in their
+declaration, but specified at construction time.
+
+\begin{lstlisting}
+class my_vec {
+public:
+  // ...
+private:
+  int z;
+  double[] v; //rtb array
+  int[] w; // rtb array
+};
+\end{lstlisting}
+
+While, the initial proposed syntax was the (perhaps more natural) 
+\verb+T var[]+, it was noted that this might clash with C's empty array bounds.
+
+Any class that has one or more run-time bound array data members becomes a
+\emph{run-time size bound class}.
+
+\subsection{Constructors}
+
+A \emph{run-time size bound class} needs to specify the size of its array data
+members upon construction.
+
+While we think it is not strictly necessary, we have taken the suggestion from
+David Vandevoorde that array sizes specification should be part of the
+declaration. Thus we require that a run-time size bound class has all its
+constructors declared \verb+inline+. Any of these constructors needs  to specify
+the size of each \emph{run-time bound array data member}. We propose the
+following syntax:
+
+\begin{lstlisting}
+class my_vec {
+public:
+  my_vec(int n) : z{n}, v[n]{}, w[n*2]{} {/*...*/}
+  my_vec() : z{0}, v[2]{}, w[4]{} {/*...*/}
+  // ...
+private
+  int z;
+  double[] v;
+  int[] w;
+};
+\end{lstlisting}
+
+Another option suggested by Daveed and collected in N3810 was describing
+underlying storage within constructor declaration. This is illustrated in the
+following example taken from N3810:
+
+\begin{lstlisting}
+struct MyArray {
+  MyArray(int n) double storage[n];
+  int size() const { return s; }
+private:
+  MyPtr<double> p;
+  int s;
+};
+
+MyArray::MyArray(int n): s(n), p(storage) {}
+\end{lstlisting}
+
+We think that the major problem of such syntax is the case where a class needs
+to have more than one RTB data member. We recognize that is not a frequent case.
+Besides, we think that this suggestion makes code more difficult to read by
+users.
+
+It has also been suggested to simplify the syntax of RTB array data members to
+the following:
+
+\begin{lstlisting}
+class my_vec {
+public:
+  my_vec(int n) : z{n}, v{n}, w{n*2} {/*...*/}
+  my_vec() : z{0}, v{2}, w{4} {/*...*/}
+  // ...
+private
+  int z;
+  double[] v;
+  int[] w;
+};
+\end{lstlisting}
+
+While this syntax seems simpler, it may be considered confusing that the
+initializer in this case is the size of the array and not a value. Besides, it
+also prevents a user of potentially initializing a small array during
+construction.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec() : v[2]{1.0, 2.0} {/*...*/}
+  // ...
+private
+  double[] v;
+};
+\end{lstlisting}
+
+\subsection{Implementing \emph{bs\_array}}
+
+One of the advantages of \emph{run-time size bound classes} is that they allow a
+really \emph{pure-library} implementation of \verb+bs_array+.
+
+\begin{lstlisting}
+template <class T>
+class bs_array {
+public:
+  using value_type = T;
+
+  bs_array(int n) : sz{n}, v[n]{} {}
+  bs_array(const bs_array & a) = default;
+  bs_array(bs_array &&) = delete;
+
+  // Unchecked access
+  T & operator[](int i) { return v[i]; }
+  const T & operator[](int i)  const { return v[i]; }
+
+  // Range checked access
+  T & at(int i);
+  const T & at(int i) cosnt;
+
+  // begin/end
+  T * begin() { return v; }
+  const T * begin() const { return v; }
+  T * end() { return v+sz; }
+  const T * end() { return v+sz; }
+
+  int size() const { return sz; }
+  T * data() { return v; }
+
+private:
+  int sz;
+  T[] v;
+};
+\end{lstlisting}
+
+We propose that a class like this is standardized with a appropriate name.
