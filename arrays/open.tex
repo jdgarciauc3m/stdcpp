@@ -2,6 +2,36 @@
 
 In this section we discuss open issues that need to be solved regarding this proposal.
 
+\subsection{Alternate constructors}
+
+Imposing the (transitive) requirement that constructors need to be inlined may
+be seen as very restrictive. We think that the most common use of this feature
+is defining automatic storage objects at function scope level. Thus this
+restriction may be not so critical.
+
+However, an alternate approach could be allowing that a constructor body is
+first inlined and the its body is refined.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) : v[n]{} {} // inline definition
+private:
+  double[] v;
+};
+
+// Definition somehwere else
+vec::vec(int n) // Member initiation not allowed here
+{
+  do_some_addtional_thing();
+}
+\end{lstlisting}
+
+In this case the inline definition can be used for computing the size of the
+object at the construction call site. However, after that the constructor body
+(if one is existing) may be called. For the sake of avoiding redundancy in this
+case, we do not allow to repeat the member initiation list.
+
 \subsection{Size determination}
 
 The current proposal implies that the size of any \emph{run-time bound array
