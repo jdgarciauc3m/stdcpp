@@ -57,6 +57,25 @@ private:
 };
 \end{lstlisting}
 
+If the \emph{initializer-list} provides less initializers the the data member
+size, the rest of elements are value initialized. However, if the number of
+initializers exceed the number of elements, exceeding initializers are
+discarded.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) :
+    v[n]{1.0, 2.0, 3.0}
+  {}
+private:
+  double[] v;
+};
+
+vec a{4}; // {1.0, 2.0, 3.0, 0.0}
+vec b{2}; // {1.0, 2.0}
+\end{lstlisting}
+
 \subsection{Run-time size bound objects as data members}
 
 If a data member of a class is of a type that is a \emph{run-time size bound class}, the the new 
