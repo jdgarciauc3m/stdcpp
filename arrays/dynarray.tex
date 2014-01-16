@@ -11,7 +11,7 @@ giving the compiler the freedom of implementing construction and destruction of
 \emph{dynarray} directly.
 
 While the border between the library and the compiler has been crossed before
-(e.g. \verb+std::initializer\_list+) we believe alternate solutions can be used
+(e.g. \verb+std::initializer_list+) we believe alternate solutions can be used
 here. 
 
 In any case, it is true that \verb+dynarray+ solves the interface problems that
@@ -35,5 +35,5 @@ string f(int n) {
 
 However, a more serious concern is that the user has no guarantee whether
 a \verb+dynarray+ object will allocated in automatic or dynamic storage.
-
-
+\textbf{This is specially important for applications where performance 
+needs to be predictable}.

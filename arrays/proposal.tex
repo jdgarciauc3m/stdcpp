@@ -1,9 +1,9 @@
-\section{Proposal}
+\section{Proposal: run-time size bounds}
 
 In this paper we present a proposal of what N3810~\cite{n3810} names as the
 \emph{array constructors} proposal which was originally suggested by J. Daniel
 Garcia in the \emph{-ext} mailing list. Ellaborations on this idea were later
-made by others including Bjarne Stroustrup, David Vandevoorde and Lawrence
+made by others including Bjarne Stroustrup, Daveed Vandevoorde and Lawrence
 Crowl.
 
 \subsection{Run-time bound array data members}
@@ -35,7 +35,7 @@ A \emph{run-time size bound class} needs to specify the size of its array data
 members upon construction.
 
 While we think it is not strictly necessary, we have taken the suggestion from
-David Vandevoorde that array sizes specification should be part of the
+Daveed Vandevoorde that array sizes specification should be part of the
 declaration. Thus we require that a run-time size bound class has all its
 constructors declared \verb+inline+. Any of these constructors needs  to specify
 the size of each \emph{run-time bound array data member}. We propose the
@@ -144,4 +144,6 @@ private:
 };
 \end{lstlisting}
 
-We propose that a class like this is standardized with a appropriate name.
+We propose that a class like this is standardized. While we are not proposing a
+specific name for such class, alternate names could be \verb+auto_array+,
+\verb+dynarray+ or even \verb+autodynarray+.

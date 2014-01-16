@@ -1,24 +1,25 @@
 \section{Introduction}
 
-During the Chicago meeting several options where discussed for \emph{Array of
+During the Chicago meeting several options were discussed for \emph{Array of
 Runtime Bounds}. These alternatives are well summarized in N3810~\cite{n3810}.
 
 This paper explores into more detail the last option mentioned in N3810 (named
-there as \emph{array constructors}. The idea behind is to provide a general way
-for defining (possibly) stack allocated arrays.
+there as \emph{array constructors}). The goal is to provide a general way for
+defining automatic storage arrays (i.e. stack allocated or side-stack allocated)
+whose size is not known at compile time.
 
 \section{Problem}
 
-\emph{Variable Length Arrays} (VLAs) have existed in C for some time. However,
-the introduction of VLAs in C++ standard as they are has been identified as
+\emph{Variable Length Arrays} (VLAs) have existed in C since C99~\cite{c99}. However,
+the introduction of VLAs in C++ standard as they are, has been identified as
 problematic.
 
 Several attempts have been made to introduce a similar facility in the C++
 programming language. A solution was incorporated in the working draft of C++14
-in the Bristol meeting. At the Chicago meeting the committe decided that this
-solution was controversial and this part was removed from the working draft. The
-committee decided that a separate technical report on \emph{array extensions}
-should address this issue.
+in the Bristol meeting (N3691~\cite{n3691}). At the Chicago meeting the committe
+decided that this solution was controversial and this part was removed from the
+working draft (N3797~\cite{n3797}). The committee decided that a separate
+technical report on \emph{array extensions} should address this issue.
 
 \input{rts-arrays}
 \input{dynarray}

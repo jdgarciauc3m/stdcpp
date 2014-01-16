@@ -9,7 +9,7 @@ data member} can be derived from the environment where the inline constructor is
 defined.
 
 In particular, this proposal does not allow the following example (slightly
-modified from an example provided by Lawrence Crowl.
+modified from an example provided by Lawrence Crowl).
 
 \begin{lstlisting}
 // a.h
@@ -23,9 +23,9 @@ struct A {
   A::A(int n) : storage(n*config) {}
 \end{lstlisting}
 
-As \emph{struct A} has a data member which is a \emph{run-time size bound class}
+As \verb+struct A+ has a data member which is a \emph{run-time size bound class}
 (the \verb+bs_array+), it is considered itself to be also a \emph{run-time size
-bound class} and the same restrictions apply to it. Thus it needs that its
+bound class} and the same restrictions apply to it. Thus, it needs that its
 constructor is defined inline.
 
 In this proposal we have not addressed this problem. We think it should be first
