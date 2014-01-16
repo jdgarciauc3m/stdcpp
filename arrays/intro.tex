@@ -9,6 +9,17 @@ for defining (possibly) stack allocated arrays.
 
 \section{Problem}
 
+\emph{Variable Length Arrays} (VLAs) have existed in C for some time. However,
+the introduction of VLAs in C++ standard as they are has been identified as
+problematic.
+
+Several attempts have been made to introduce a similar facility in the C++
+programming language. A solution was incorporated in the working draft of C++14
+in the Bristol meeting. At the Chicago meeting the committe decided that this
+solution was controversial and this part was removed from the working draft. The
+committee decided that a separate technical report on \emph{array extensions}
+should address this issue.
+
 \input{rts-arrays}
 \input{dynarray}
 \input{bsarray}
