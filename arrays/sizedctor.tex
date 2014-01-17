@@ -1,0 +1,244 @@
+\subsection{Sized constructors}
+
+Restricting constructors of \emph{run-time size bound classes} to be inline have
+been seen as problematic. We have outlined some concerns about this issue in the
+previous section.
+
+Here we outline an alternative where the size of run-time bound array data
+members is part of the constructor specification. This proposal is based in
+(what we think is) a simplification over an original idea proposed by Daveed
+Vandevoorde.
+
+\subsubsection{Constructors with size specification}
+
+A \emph{run-time size bound class} needs to specify the size of its array data
+members upon construction. We propose to make such specification part of the
+constructor declaration.
+
+For this purpose we propose to add to the constructor syntax a
+\emph{sizeof-specifier}.
+
+\begin{lstlisting}
+class my_vec {
+public:
+  my_vec(int n) sizeof(v[n], w[2*n]);
+  my_vec() sizeof(v[2], w[4]);
+private:
+  int z;
+  double[] v;
+  int[] w;
+};
+
+my_vec::my_vec(int n) : z{n} {}
+
+my_vec::my_vec() : z{0} {}
+\end{lstlisting}
+
+We think this is simpler than the storage specification suggested by Daveed
+Vandevoorde and quoted in N3810. With that syntax the above example would be:
+
+\begin{lstlisting}
+class my_vec {
+public:
+  my_vec(int n) double storage_v[n], int storage_w[2*n];
+  my_vec()  double storage_v[2], int storage_w[4];
+private:
+  int z;
+  double * v;
+  int * w;
+};
+
+my_vec::my_vec(int n) : z{n}, v{storage_v}, w{storage_w} {}
+
+my_vec::my_vec() : z{0}, v{storage_v}, w{storage_w}{}
+\end{lstlisting}
+
+We see storage specification option to look more verbose. Besides, it implies to
+manage two names per array (one for the storage and another one for the pointer).
+
+\subsubsection{Implementing \emph{bs\_array}}
+
+An implementation of \verb+bs_array+ is possible with sized constructors.
+
+\begin{lstlisting}
+template <class T>
+class bs_array {
+public:
+  using value type = T;
+
+  bs_array(int n) sizeof(v[n]);
+  bs array(const bs array & a) = default;
+  bs array(bs array &&) = delete;
+
+  // Unchecked access
+  T & operator[](int i) { return v[i]; }
+  const T & operator[](int i) const { return v[i]; }
+
+  // Range checked access
+  T & at(int i );
+  const T & at(int i) cosnt;
+
+  // begin/end
+  T * begin() { return v; }
+  const T * begin() const { return v; }
+  T * end() { return v+sz; }
+  const T * end() { return v+sz; }
+
+  int size () const { return sz; }
+  T * data() { return v; }
+private:
+  int sz;
+  T[] v;
+};
+\end{lstlisting}
+
+\subsubsection{Initialization options}
+
+Initialization for \emph{run-time bound array data members} is performed at the
+constructor through initialization lists as it would have been done for any
+other array data member.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) sizeof(v[n], w[n]);
+private:
+  double[] v;
+  point[] w;
+};
+
+vec::vec(int n) : v{}, w{} {} // v[i] == 0.0, w[i] == point{}
+\end{lstlisting}
+
+It is possible to \emph{default-initialize} any array data-member by not
+including it in the initialization list.
+
+\begin{lstlisting}
+vec::vec(int n) {} // v and w are default-initialized
+\end{lstlisting}
+
+It is also possible to provide \emph{initializer-lists} for performing array
+initialization. If the list provides less initializers than the array data
+member size, the rest of elements are \emph{value-initialized}. If the list
+provides more elements than the array data member size exceeding elements are
+discarded.
+
+\begin{lstlisting}
+class myvec {
+public:
+  myvec() sizeof(v[4], w[2]);
+  myvec(int n) : sizeof(v[n], w[n]);
+private:
+  double[] v;
+  float[] w;
+};
+
+myvec() :
+  v{1.0, 2.0}, // {1.0, 2.0, 0.0, 0.0}
+  w{1.5, 2.5, 3.5} // {1.5, 2.5}. Third value (3.5) is discarded
+{}
+
+myvec{int n) :
+  v{1.0, 2.0 }, // Discarding if n<2
+  w{1.5, 2.5, 3.5 }, // Discarding if n<3
+{}
+\end{lstlisting}
+
+\subsubsection{Run-time size bound objects}
+
+If a class has a data member which is of a \emph{run-time size bound class} it
+becomes itself a \emph{run-time size bound class}. In that case we require that
+the call to the constructor of such sub-object is specified in the \emph{sizeof}
+specifier of the constructor.
+
+\begin{lstlisting}
+class A {
+public:
+  A(int n) sizeof(v[n]);
+private:
+  double[] v;
+};
+
+class B {
+public:
+  B() sizeof(a{4});
+  B(int m) sizeof(a{m});
+private:
+  A a; // A is run-time size bound -> B is run-time size bound
+};
+
+B::B() {}
+B::B(int m) {}
+\end{lstlisting}
+
+This is much less restrictive that requiring the inlining of the full
+constructor. This requirement allows for size determination from the call site.
+
+A similar restriction applies to inheritance:
+
+\begin{lstlisting}
+class A {
+public:
+  A(int n) sizeof(v[n]);
+private:
+  double[] v;
+};
+
+class B : public A { // A is run-time size bound -> B is run-time size bound
+public:
+  B() sizeof(A{3});
+  B(int m) sizeof(A{m});
+};
+
+B::B() {}
+B::B(int m) {}
+\end{lstlisting}
+
+\subsubsection{Contexts of use}
+
+As with inline constructors alternative, we propose that the only use of a
+\emph{run-time size bound class} object is as an automatic variable.
+
+\subsubsection{\emph{sizeof}}
+
+As with inline constructors alternative, we do not plan to support operator
+\verb+sizeof+.
+
+\subsubsection{Non-inlined constructors}
+
+In this option there is no requirement to force constructors to be
+\emph{inline}. This allows constructors to be defined elsewhere and to have
+complex bodies when needed.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) sizeof(v[n]);
+private:
+  double[] v;
+};
+
+// Definition somewhere else
+vec::vec(int n) : v{}
+{
+  do_some_additional_thing();
+}
+\end{lstlisting}
+
+\subsubsection{Size determination}
+
+This proposal does not allow writing the example from Lawrence Crowl already cited
+in Section~\ref{sec:inline-size-det}.
+
+\subsubsection{Multi-dimensional data members}
+
+Multi-dimensional data members can also be expressed with this alternative.
+
+\begin{lstlisting}
+class stack_matrix {
+public:
+  stack_matrix(int r, int c) sizeof(v[r][c]);
+private:
+  double[][] v;
+};
+\end{lstlisting}

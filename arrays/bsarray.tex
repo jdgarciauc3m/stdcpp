@@ -34,5 +34,27 @@ private:
 \end{lstlisting}
 
 This approach addresses our concern about allocation as \verb+bs_array+ is
-guaranteed to be allocated on the stack. However, it shares with \verb+dynarray+
-the need for compiler support.
+guaranteed to be allocated on the stack. Now, the interface promotion problem is
+solved at the same time that storage allocation is predictable.
+
+\begin{lstlisting}
+std::string g(const bs_array<int> & v) {
+  std::string result;
+  for (auto x : v) {
+    result += std::to_string(x);
+  }
+  return result;
+}
+
+std::string f(int n) {
+  bs_array<int> v{n}; // allocated on the stack
+  std::iota(v.begin(), v.end(), 1);
+  return g(v);
+}
+\end{lstlisting}
+
+
+
+However, \verb+bs_array+ shares with \verb+dynarray+ the need for compiler
+support. \textbf{While this is acceptable, we beleive that a more general
+solution can be achieved at the language level}.

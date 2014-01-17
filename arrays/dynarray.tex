@@ -18,7 +18,7 @@ In any case, it is true that \verb+dynarray+ solves the interface problems that
 run-time sized arrays would be promoting and better code can be written.
 
 \begin{lstlisting}
-string g(const dynarray<int> & v) {
+std::string g(const dynarray<int> & v) {
   std::string result;
   for (auto x : v) {
     result += std::to_string(x);
@@ -26,8 +26,8 @@ string g(const dynarray<int> & v) {
   return result;
 }
 
-string f(int n) {
-  dynarray<int> v; // Where is this allocated?
+std::string f(int n) {
+  dynarray<int> v{n}; // Where is this allocated?
   std::iota(v.begin(), v.end(), 1);
   return g(v);
 } 

@@ -1,0 +1,374 @@
+\subsection{Inline constructors proposal}
+
+We present here the inline constructors proposal, which may be seen as more restrictive.
+
+\subsubsection{Run-time bound array data members}
+
+We propose a new syntax for introducing array data members of unspecified size.
+The size will be specified at construction time.
+
+\begin{lstlisting}
+class my_vec {
+public:
+  // ...
+private:
+  int z;
+  double[] v; //rtb array
+  int[] w; // rtb array
+};
+\end{lstlisting}
+
+While, the initial proposed syntax was the (perhaps more natural) 
+\verb+T var[]+, it was noted that this might clash with C's empty array bounds.
+
+Any class that has one or more run-time bound array data members becomes a
+\emph{run-time size bound class}.
+
+\subsubsection{Constructors}
+
+A \emph{run-time size bound class} needs to specify the size of its array data
+members upon construction.
+
+Array sizes specifications need to be known from any constructor call site.
+Thus, we require that a run-time size bound class has all its
+constructors declared \verb+inline+. Any of these constructors needs  to specify
+the size of each \emph{run-time bound array data member}. We propose the
+following syntax:
+
+\begin{lstlisting}
+class my_vec {
+public:
+  my_vec(int n) : z{n}, v[n]{}, w[n*2]{} {/*...*/}
+  my_vec() : z{0}, v[2]{}, w[4]{} {/*...*/}
+  // ...
+private
+  int z;
+  double[] v;
+  int[] w;
+};
+\end{lstlisting}
+
+Another option suggested by Daveed and collected in N3810 was describing
+underlying storage within constructor declaration. This is illustrated in the
+following example taken from N3810:
+
+\begin{lstlisting}
+struct MyArray {
+  MyArray(int n) double storage[n];
+  int size() const { return s; }
+private:
+  MyPtr<double> p;
+  int s;
+};
+
+MyArray::MyArray(int n): s(n), p(storage) {}
+\end{lstlisting}
+
+We think that the major problem of such syntax is the case where a class needs
+to have more than one RTB data member. We recognize that this is not a frequent
+case.  Besides, we think that this suggestion makes code more difficult to read
+by users.
+
+It has also been suggested to simplify the syntax of RTB array data members to
+the following:
+
+\begin{lstlisting}
+class my_vec {
+public:
+  my_vec(int n) : z{n}, v{n}, w{n*2} {/*...*/}
+  my_vec() : z{0}, v{2}, w{4} {/*...*/}
+  // ...
+private
+  int z;
+  double[] v;
+  int[] w;
+};
+\end{lstlisting}
+
+While this syntax seems simpler, it may be considered confusing that the
+initializer in this case is the size of the array and not a value. Besides, it
+also prevents a user of potentially initializing a small array during
+construction.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec() : v[2]{1.0, 2.0} {/*...*/}
+  // ...
+private
+  double[] v;
+};
+\end{lstlisting}
+
+\subsubsection{Implementing \emph{bs\_array}}
+
+One of the advantages of \emph{run-time size bound classes} is that they allow a
+really \emph{pure-library} implementation of \verb+bs_array+.
+
+\begin{lstlisting}
+template <class T>
+class bs_array {
+public:
+  using value_type = T;
+
+  bs_array(int n) : sz{n}, v[n]{} {}
+  bs_array(const bs_array & a) = default;
+  bs_array(bs_array &&) = delete;
+
+  // Unchecked access
+  T & operator[](int i) { return v[i]; }
+  const T & operator[](int i)  const { return v[i]; }
+
+  // Range checked access
+  T & at(int i);
+  const T & at(int i) cosnt;
+
+  // begin/end
+  T * begin() { return v; }
+  const T * begin() const { return v; }
+  T * end() { return v+sz; }
+  const T * end() { return v+sz; }
+
+  int size() const { return sz; }
+  T * data() { return v; }
+
+private:
+  int sz;
+  T[] v;
+};
+\end{lstlisting}
+
+We propose that a class like this is standardized. While we are not proposing a
+specific name for such class, alternate names could be \verb+auto_array+,
+\verb+stack_array+, \verb+dynarray+ or even \verb+autodynarray+.
+
+
+\subsubsection{Initialization options}
+
+The syntax needs to support several options for initialization as a balance
+needs to be made between performance and flexibility. For this reason, we have
+kept separate the specification of the data member size and its value in the
+constructor.
+
+If no values are provided in the initializer for the array data member, each
+element in the array is \emph{value-initialized}.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) : 
+    v[n]{}, // v[i] = 0.0
+    w[n]{}  // w[i] = point{}
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+
+If braces are not present after the size specification, each element is
+\emph{default-initialized} (including no initialization for scalars):
+
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) : 
+    v[n], // v[i] is not initialized
+    w[n]  // w[i] = point{}
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+
+It is also possible to provide an \emph{initalizer-list} in the data member initializer:
+
+\begin{lstlisting}
+class vec {
+public:
+  vec() : 
+    v[2]{-1.0, 2.5}, 
+    w[2]{ {1.0,1.0}, {2.5,2.5} }
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+
+If the \emph{initializer-list} provides less initializers than the array data member
+size, the rest of elements are value initialized. 
+
+However, if the number of
+initializers exceed the number of elements, exceeding initializers are
+discarded. Note that this condition cannot be checked until run time making any
+compile time diagnostic not viable. An alternate solution here, could be
+throwing an exception, but we are not currently proposing this alternative.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) :
+    v[n]{1.0, 2.0, 3.0}
+  {}
+private:
+  double[] v;
+};
+
+vec a{4}; // a == {1.0, 2.0, 3.0, 0.0}
+vec b{2}; // b == {1.0, 2.0}
+\end{lstlisting}
+
+\subsubsection{Run-time size bound objects as data members}
+
+If a data member of a class is of a type that is a \emph{run-time size bound class}, the the new 
+class is also a \emph{run-time size bound class} and the same restrictions are
+applied to it. In particular, its constructor also needs to be defined inline.
+
+\begin{lstlisting}
+class A {
+public:
+  A(int n) : v[n]{} {}
+private:
+  double[] v;
+};
+
+class B {
+public:
+  B() : a{4} {}
+private:
+  A a;
+};
+\end{lstlisting}
+
+The same applies to a inheritance.
+
+\begin{lstlisting}
+class A {
+public:
+  A(int n) : v[n]{} {}
+private:
+  double[] v;
+};
+
+class B : public A {
+public:
+  B() : A{4} {}
+};
+\end{lstlisting}
+
+\subsubsection{Contexts of use}
+
+We propose that the only use of a \emph{run-time size bound class} object is as
+an automatic variable. In particular, we propose to ban any use implying dynamic
+memory.
+
+\begin{lstlisting}
+class A {
+public:
+  A(int n) : v[n]{} {}
+private:
+  double[] v;
+};
+
+void f() {
+  A a{4}; // OK;
+  A * p = new A{4}; // Error
+  vector<A> w; // Error
+}
+\end{lstlisting}
+
+\subsubsection{\emph{sizeof}}
+
+Operator \verb+sizeof+ is not supported on any type or object of a \emph{run-time size bound class}.
+
+\subsubsection{Non-inlined constructors}
+
+Imposing the (transitive) requirement that constructors need to be inlined may
+be seen as very restrictive. We think that the most common use of this feature
+is defining automatic storage objects at function scope level. Thus, this
+restriction may be not so critical.
+
+However, an alternate approach could be allowing that a constructor body is
+first inlined and then its body is refined.
+
+\begin{lstlisting}
+class vec {
+public:
+  vec(int n) : v[n]{} {} // inline definition
+private:
+  double[] v;
+};
+
+// Definition somehwere else
+vec::vec(int n) // Member initiation not allowed here
+{
+  do_some_additional_thing();
+}
+\end{lstlisting}
+
+In this case the inline definition can be used for computing the size of the
+object at the construction call site. However, after that the constructor body
+(if one is existing) may be called. For the sake of avoiding redundancy in this
+case, we do not allow to repeat the member initiation list.
+
+\subsubsection{Size determination}
+\label{sec:inline-size-det}
+
+The current proposal implies that the size of any \emph{run-time bound array
+data member} can be derived from the environment where the inline constructor is
+defined.
+
+In particular, this proposal does not allow the following example (slightly
+modified from an example provided by Lawrence Crowl).
+
+\begin{lstlisting}
+// a.h
+struct A {
+  bs_array<double> storage;
+  A(int n);
+};
+
+// a.cc
+  extern int config;
+  A::A(int n) : storage(n*config) {}
+\end{lstlisting}
+
+As \verb+struct A+ has a data member which is a \emph{run-time size bound class}
+(the \verb+bs_array+), it is considered itself to be also a \emph{run-time size
+bound class} and the same restrictions apply to it. Thus, it needs that its
+constructor is defined inline.
+
+In this proposal we have not addressed this problem. We think it should be first
+clarified if this use case is important enough to be solved.
+
+Possible solutions are:
+
+\begin{itemize}
+
+\item Require that the variable (i.e. \verb+config+) is visible at the point of definition of the
+inline constructor.
+
+\item Modify the proposal so that it is not required that the constructor is
+defined inline.
+
+\end{itemize}
+
+\subsubsection{Multi-dimensional data members}
+
+This proposal initially tries to support single-dimension \emph{run-time bound}
+data members. However, if needed it could be extended to support multiple
+dimension \emph{run-time bound} data members.
+
+\begin{lstlisting}
+class stack_matrix {
+public:
+  stack_matrix(int r, int c) : v[r][c]{} {}
+  // ...
+private:
+  double[][] v;
+};
+\end{lstlisting}
+
