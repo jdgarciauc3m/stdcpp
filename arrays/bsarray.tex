@@ -21,8 +21,8 @@ class bs_array { // basic stack-allocated array
 
   T* begin() { return a; } 
   const T* begin() const { return a; }
-  T* begin() { return a+n; }
-  const T* begin() const { return a+n; }
+  T* end() { return a+n; }
+  const T* end() const { return a+n; }
 
   int size();
 

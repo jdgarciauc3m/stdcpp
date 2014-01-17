@@ -57,7 +57,7 @@ private:
 };
 \end{lstlisting}
 
-If the \emph{initializer-list} provides less initializers the the data member
+If the \emph{initializer-list} provides less initializers the the array data member
 size, the rest of elements are value initialized. However, if the number of
 initializers exceed the number of elements, exceeding initializers are
 discarded.
@@ -120,7 +120,7 @@ memory
 class A {
 public:
   A(int n) : v[n]{} {}
-public:
+private:
   double[] v;
 };
 

@@ -10,7 +10,7 @@ is defining automatic storage objects at function scope level. Thus this
 restriction may be not so critical.
 
 However, an alternate approach could be allowing that a constructor body is
-first inlined and the its body is refined.
+first inlined and then its body is refined.
 
 \begin{lstlisting}
 class vec {
@@ -65,7 +65,7 @@ Possible solutions are:
 
 \begin{itemize}
 
-\item Require that the variable (i.e. \verb+config+) is visible in the point of definition of the
+\item Require that the variable (i.e. \verb+config+) is visible at the point of definition of the
 inline constructor.
 
 \item Modify the proposal so that it is not required that the constructor is

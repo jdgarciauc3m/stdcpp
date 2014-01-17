@@ -28,8 +28,8 @@ string g(const dynarray<int> & v) {
 
 string f(int n) {
   dynarray<int> v; // Where is this allocated?
-  std::iota(v);
-  return g(v, n);
+  std::iota(v.begin(), v.end(), 1);
+  return g(v);
 } 
 \end{lstlisting}
 
