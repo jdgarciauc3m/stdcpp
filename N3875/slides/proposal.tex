@@ -1,0 +1,353 @@
+\section{Proposal}
+
+\subsection{Run-time size bound array}
+
+\begin{frame}[t]{Basic idea}
+\begin{itemize}[<+->]
+  \item Core idea:
+    \begin{itemize}
+      \item Allow a class to have one or more run-time bound array data members.
+        \begin{itemize}
+          \item Array data members of unspecified number of elements.
+          \item Constructor responsible for setting the size upon object construction.
+        \end{itemize}
+    \end{itemize}
+  \item Alternatives:
+    \begin{itemize}
+      \item Inline constructors.
+        \begin{itemize}
+          \item Constructors required to be inline.
+          \item Array data members size set in constructor initilization list.
+        \end{itemize}
+      \item Sized constructos.
+        \begin{itemize}
+          \item Array data members size is part of constructor declaration.
+        \end{itemize}
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[t,fragile]{Runtime bound array data members}
+  \begin{itemize}
+    \item New syntax for array data members of unspecified size.
+  \end{itemize}
+\pause
+\begin{lstlisting}[style=cpp11]
+class my_vec {
+public:
+  // ...
+private:
+  int z;
+  double[] v; //rtb array
+  int[] w; // rtb array
+};
+\end{lstlisting}
+  \begin{itemize}
+    \item Alternate syntax:
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+T var[]; // May clash with C?
+\end{lstlisting}
+\end{frame}
+
+\subsection{Inline constructors}
+
+\begin{frame}[t,fragile]{Constructors}
+\begin{itemize}
+  \item Needs to specify size of array data members upon construction.
+  \item Require constructors to be inline.
+  \item Specify array size extending initialization-list syntax.
+\end{itemize}
+\begin{lstlisting}[style=cpp11]
+class my_vec {
+public:
+  my_vec(int n) : z{n}, v[n]{}, w[n*2]{} {/*...*/}
+  my_vec() : z{0}, v[2]{}, w[4]{} {/*...*/}
+  // ...
+private
+  int z;
+  double[] v;
+  int[] w;
+};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Implementing \texttt{bs\_array} (I)}
+\begin{lstlisting}[style=cpp11]
+template <class T>
+class bs_array {
+public:
+  using value_type = T;
+
+  bs_array(int n) : sz{n}, v[n]{} {}
+  bs_array(const bs_array & a) = default;
+  bs_array(bs_array &&) = delete;
+
+  // Unchecked access
+  T & operator[](int i) { return v[i]; }
+  const T & operator[](int i)  const { return v[i]; }
+
+  // Range checked access
+  T & at(int i);
+  const T & at(int i) const;
+
+  // ...
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Implementing \texttt{bs\_array} (and II)}
+\begin{lstlisting}[style=cpp11]
+  // ...
+
+  // begin/end
+  T * begin() { return v; }
+  const T * begin() const { return v; }
+  T * end() { return v+sz; }
+  const T * end() { return v+sz; }
+
+  int size() const { return sz; }
+  T * data() { return v; }
+
+private:
+  int sz;
+  T[] v;
+};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Initialization options (I)}
+  \begin{itemize}
+    \item Separate specification of array size and initial values.
+    \item If no values are provided, each element is \emph{value-initialized}.
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+class vec {
+public:
+  vec(int n) : 
+    v[n]{}, // v[i] = 0.0
+    w[n]{}  // w[i] = point{}
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Initialization options (II)}
+  \begin{itemize}
+    \item If braces are not present, each element is \emph{default-initialized}.
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+class vec {
+public:
+  vec(int n) : 
+    v[n], // v[i] is not initialized
+    w[n]  // w[i] = point{}
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Initialization options (III)}
+  \begin{itemize}
+    \item An \emph{initializer-list} can be used initialize the array.
+      \begin{itemize}
+        \item If less elements than size are provided, the rest are \emph{value-initialized}.
+        \item If more elements than size are provided, exceeding elements are discarded.
+      \end{itemize}
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+class vec {
+public:
+  vec() : 
+    v[2]{-1.0, 2.5}, 
+    w[2]{ {1.0,1.0}, {2.5,2.5} }
+  {}
+private:
+  double[] v;
+  point[] w;
+};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Using a RB class as data member}
+  \begin{itemize}
+    \item If a data member is of a runtime size bound class $\Rightarrow$ the new class is runtime size bound class.
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+class A {
+public:
+  A(int n) : v[n]{} {}
+private:
+  double[] v;
+};
+
+class B {
+public:
+  B() : a{4} {}
+private:
+  A a;
+};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Inheriting from a RB class}
+  \begin{itemize}
+    \item If a base class is of a runtime size bound class $\Rightarrow$ the new class is runtime size bound class.
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+class A {
+public:
+  A(int n) : v[n]{} {}
+private:
+  double[] v;
+};
+
+class B : public A {
+public:
+  B() : A{4} {}
+};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Contexts of use}
+\begin{itemize}
+  \item Only objects as automatic variables.
+\end{itemize}
+\begin{lstlisting}[style=cpp11]
+class A {
+public:
+  A(int n) : v[n]{} {}
+private:
+  double[] v;
+};
+
+void f() {
+  A a{4}; // OK;
+  A * p = new A{4}; // Error
+  vector<A> w; // Error
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t]{Size}
+  \begin{itemize}
+    \item Operator \cppkey{sizeof} is not supported for any type of object of run-time size bound class.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[t,fragile]{Non-inlined constructors}
+  \begin{itemize}
+    \item Transitive requirement of inline constructors seen too restrictive.
+      \begin{itemize}
+        \item Very common case: Automatic objects at function scope.
+        \item Other case: Composition in other classes (abstraction).
+          \begin{itemize}
+            \item Restriction may become problematic here.
+          \end{itemize}
+      \end{itemize}
+    \pause
+    \item Alternate approach:
+      \begin{itemize}
+        \item Allow inlining and then body refinement.
+      \end{itemize}
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+class vec {
+public:
+  vec(int n) : v[n]{} {} // inline definition
+private:
+  double[] v;
+};
+// Definition somehwere else. No init-list allowed
+vec::vec(int n) {
+  do_some_additional_thing();
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Multi-dimensional data members}
+\begin{lstlisting}[style=cpp11]
+class stack_matrix {
+public:
+  stack_matrix(int r, int c) : v[r][c]{} {}
+  // ...
+private:
+  double[][] v;
+};
+\end{lstlisting}
+\end{frame}
+
+\subsection{Sized constructors}
+
+\begin{frame}[t,fragile]{Size specifications}
+  \begin{itemize}
+    \item Add a \emph{sizeof specifier} in constructor declaration.
+      \begin{itemize}
+        \item Only in declaration.
+      \end{itemize}
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+class my_vec {
+public:
+  my_vec(int n) sizeof(v[n], w[2*n]);
+  my_vec() sizeof(v[2], w[4]);
+private:
+  int z;
+  double[] v;
+  int[] w;
+};
+
+my_vec::my_vec(int n) : z{n} {}
+
+my_vec::my_vec() : z{0} {}
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[t,fragile]{Implementing \texttt{bs\_array} (I)}
+\begin{lstlisting}[style=cpp11]
+class bs_array {
+public:
+  using value type = T;
+
+  bs_array(int n) sizeof(v[n]);
+  bs array(const bs array & a) = default;
+  bs array(bs array &&) = delete;
+
+  // Unchecked access
+  T & operator[](int i) { return v[i]; }
+  const T & operator[](int i) const { return v[i]; }
+
+  // Range checked access
+  T & at(int i );
+  const T & at(int i) cosnt;
+
+  // ...
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Implementing \texttt{bs\_array} (and II)}
+\begin{lstlisting}[style=cpp11]
+  // ...
+
+  // begin/end
+  T * begin() { return v; }
+  const T * begin() const { return v; }
+  T * end() { return v+sz; }
+  const T * end() { return v+sz; }
+
+  int size () const { return sz; }
+  T * data() { return v; }
+
+private:
+  int sz;
+  T[] v;
+};
+
+\end{lstlisting}
+\end{frame}

@@ -1,0 +1,181 @@
+\section{Problem}
+
+\begin{frame}{The problem with VLA's}
+  \begin{itemize}
+    \item Variable Length Arrays in C since C99.
+      \begin{itemize}
+        \item Problematic in C++.
+      \end{itemize}
+    \item Past proposals:
+      \begin{itemize}
+        \item Runtime-sized arrays with automatic storage.
+          \begin{itemize}
+            \item N3366, N3412, N3467, N3497, N3639.
+          \end{itemize}
+        \item \texttt{dynarray}.
+          \begin{itemize}
+            \item N3532, N3662
+          \end{itemize}
+        \item \texttt{bs\_array}.
+          \begin{itemize}
+            \item N3810
+          \end{itemize}
+      \end{itemize}
+    \item Alternatives sumarized in N3810.
+  \end{itemize}
+\end{frame}
+
+\subsection{Runtime-sized arrays with automatic storage}
+
+\begin{frame}[fragile]{Use case}
+  \begin{itemize}
+    \item A user wishes to allocate a local array whose size is not known at compile-time, but at runtime only.
+  \end{itemize}
+\pause
+\begin{lstlisting}[style=cpp11]
+std::string f(int n) {
+  std::vector<int> v(n); // std::vector allocation
+  std::iota(v.begin(), v.end(), 1);
+  std::string result;
+  for (auto x : v) {
+    result += std::to_string(x);
+  }
+  return result;
+} // std::vector deallocation
+\end{lstlisting}
+  \begin{itemize}
+    \item \alert{Use of memory allocation leads to performance penalty}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[t,fragile]{Avoiding dynamic memory allocation}
+  \begin{itemize}
+    \item \emph{Use a runtime sized array with automatic storage}.
+  \end{itemize}
+\begin{lstlisting}[style=cpp11]
+std::string f(int n) {
+  int v[n]; // run-time sized array with automatic storage
+  std::iota(v, v + n, 1);
+  std::string result;
+  for (int i=0; i<n; ++i) {
+    result += std::to_string(x);
+  }
+  return result;
+} 
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Promoting pointer-plus-size interface}
+\begin{lstlisting}[style=cpp11]
+std::string g(int * v, std::size_t n) {
+  std::string result;
+  for (std::size_t i=0; i!=n; ++i) {
+    result += std::to_string(v[i]);
+  }
+  return result;
+}
+
+std::string f(int n) {
+  int v[n];
+  std::iota(v, v + n, 1);
+  return g(v, n);
+} 
+\end{lstlisting}
+\pause
+\begin{itemize}
+  \item Why this interface is not desirable?
+    \begin{itemize}
+      \item Number of elements not available $\Rightarrow$ User needs to \emph{remember} size.
+      \item Type to access elements can implicitly changes after array decayed to pointer.
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+\subsection{\texttt{dynarray} class}
+
+\begin{frame}{\texttt{dynarray}}
+  \begin{itemize}
+    \item A class with compiler support to eventually allocate on stack.
+      \begin{itemize}
+        \item A pure-library implementation is possible.
+        \item But it would probably be based on dynamic memory allocation.
+        \item Stack allocation would require \emph{compiler magic}.
+      \end{itemize}
+    \item Pro:
+      \begin{itemize}
+        \item It solves the \emph{interface problem}.
+      \end{itemize}
+    \item Con:
+      \begin{itemize}
+        \item \texttt{dynarray} evolved to \emph{almost a container}.
+        \item No guarantee whether an object will be allocated in automatic or dynamic storage.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[t,fragile]{Using \texttt{dynarray}}
+\begin{lstlisting}[style=cpp11]
+std::string g(const dynarray<int> & v) {
+  std::string result;
+  for (auto x : v) {
+    result += std::to_string(x);
+  }
+  return result;
+}
+
+std::string f(int n) {
+  dynarray<int> v{n}; // Where is this allocated?
+  std::iota(v.begin(), v.end(), 1);
+  return g(v);
+} 
+\end{lstlisting}
+\end{frame}
+
+\subsection{\texttt{bs\_array} class}
+
+\begin{frame}[t,fragile]{A \emph{minimal stack-allocated array}}
+\begin{lstlisting}[style=cpp11]
+template<class T>
+class bs_array { // basic stack-allocated array
+public:
+  using value_type = T;
+
+  bs_array(int n); // n elements
+  T& operator[](int i); 
+  const T& operator(int i) const; 
+  T& at(int i); 
+  const T& at(int i) const; 
+  T* begin() { return a; } 
+  const T* begin() const { return a; }
+  T* end() { return a+n; }
+  const T* end() const { return a+n; }
+  int size();
+  T* data();
+private:
+  T a[n]; // for exposition only, a is stack allocated
+};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[t,fragile]{Using \texttt{bs\_array}}
+\begin{lstlisting}[style=cpp11]
+std::string g(const bs_array<int> & v) {
+  std::string result;
+  for (auto x : v) {
+    result += std::to_string(x);
+  }
+  return result;
+}
+
+std::string f(int n) {
+  bs_array<int> v{n}; // allocated on the stack
+  std::iota(v.begin(), v.end(), 1);
+  return g(v);
+}
+\end{lstlisting}
+\begin{itemize}
+  \item It always allocates on the stack.
+  \item No wrong interface promotion.
+  \item \alert{Needs compiler support}.
+\end{itemize}
+\end{frame}
