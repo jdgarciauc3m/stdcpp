@@ -1,0 +1,48 @@
+\section{The string library}
+
+\subsection{Character traits}
+
+The four character traits in the standards only differ in the concrete character type.
+For brevity here only type \texttt{char} is studied.
+
+\subsubsection{\texttt{char\_traits}}
+
+\begin{lstlisting}
+template<typename charT> 
+struct char_traits<char> {
+  using char_type = charT;
+  using int_type = implementation-defined;
+  using off_type = implementation-defined;
+  using pos_type = implementation-defined;
+  using state_type = implementation-defined;
+
+  static void assign(char_type & c1, char_type & c2) noexcept
+    ensures(c1==c2);
+
+  static constexpr bool eq(char_type c1, char_type c2) noexcept
+    ensures((static_cast<unsigned char>(c1)==static_chast<unsigned char>(c2))?eq==true:eq==false);
+\end{lstlisting}
+
+
+
+\subsubsection{\texttt{char\_traits<char>}}
+
+\begin{lstlisting}
+template<> struct char_traits<char> {
+  using char_type = char;
+  using int_type = int;
+  using streamoff = off_type;
+  using streampos = pos_type;
+  using mbstate_t = state_type;
+
+  static void assign(char_type & c1, char_type & c2) noexcept
+    ensures(c1==c2);
+
+  static constexpr bool eq(char_type c1, char_type c2) noexcept
+    ensures((static_cast<unsigned char>(c1)==static_chast<unsigned char>(c2))?eq==true:eq==false);
+
+  static constexpr bool lt(char_tyep c1, char_tyep c2) noexcept
+    ensures((static_cast<unsigned char>(c1)<static_chast<unsigned char>(c2))?eq==true:eq==false);
+  
+};
+\end{lstlisting}
