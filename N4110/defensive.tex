@@ -1,0 +1,180 @@
+\section{Addressing centralized defensive programming}
+
+This section tries to explore how the presented solution would be addressing the
+issues presented in \cite{n3997}.
+
+\subsection{The wide versus narrow contracts debate}
+
+The importance of the distinction between wide and narrow contracts must be
+acknowledged. However, both establish a contract. It is my view that the
+difference lies in the fact of how a violation is handled.
+
+A \emph{wide contract} only has strong preconditions. Those preconditions are never
+removed (regardless the checking mode) and the always have the same effect they
+throw an exception.
+
+\begin{lstlisting}
+const T & std::vector::at(size_t index) const
+  expects<out_of_range>(index<size());
+\end{lstlisting}
+
+A \emph{narrow contract} may have weak preconditions. Those preconditions may be
+checked or not, depending on the context and compilation mode.
+
+\begin{lstlisting}
+const T & std::vector::at(size_t index) const
+  expects(index<size());
+\end{lstlisting}
+
+One of the reasons that initiated the wide versus narrow contract debate was to
+establish limitations to the aggressive use on \texttt{noexcept} in the standard
+library specification. It is worth to note that the approach taking in this
+paper that the contract is part of the interface and not of the implementation
+would eventually allow that functions with contracts (either narrow or wide)
+would still be able to be marked \texttt{noexcept}.
+
+\begin{lstlisting}
+const T & std::vector::at(size_t index) const noexcept
+  expects<out_of_range>(index<size());
+const T & std::vector::at(size_t index) const noexcept
+  expects(index<size());
+\end{lstlisting}
+
+\subsection{Artificially widening of contracts}
+
+Expressing a weak contract is not a way of widening that contract.
+
+Given the following example from~\cite{n3997}:
+
+\begin{lstlisting}
+class date {
+ // ...
+ public:
+ // ... 
+ void set_ymd(int year, int month, int day); // narrow
+ // Set the value of this object to the specified
+ // 'year', 'month', and 'day'. The behavior is 
+ // undefined unless 'year', 'month', and 'day' 
+ // together represent a valid/supported date value. 
+\end{lstlisting}
+
+We would express it:
+
+\begin{lstlisting}
+class date {
+  public:
+    void set_ymd(int y, int m, int d)
+      expects(valid_date(y,m,d));
+    //...
+  private:
+    static bool valid_date(int y, int m, int d);
+      // Tell me if it represents a valid/supported date value
+\end{lstlisting}
+
+This rewriting does not change the fact that the contract is narrow. Moreover,
+nothing stops the writer to mark the function as \texttt{noexcept}.
+
+The reasons for not artificially widening narrow contracts (runtime cost,
+development cost, code size, extensibility, and defensive programming) are all
+valid and the guideline of not widening otherwise narrow contracts is correct.
+
+\cppquestion{Explicitly expressing contracts as part of the interface does not
+widens an otherwise narrow contract}
+
+\subsection{Contracts and high-level requirements}
+
+A contract solution must satisfy high-level requirements that are different for
+the library developer and and application developer.
+
+A library developer must be able to:
+
+\begin{itemize}
+
+\item Easily implement defensive checks which are active in appropriate
+defensive build modes. The proposed solution easily achieves this goal as
+contracts can be activated, although this is not the default mode.
+
+\item Easily check that defensive checks are working as intended. 
+
+\end{itemize}
+
+An application owner must be able to:
+
+\begin{itemize}
+
+\item Coarsely specify (at compile time) the overall runtime validation
+overhead.
+
+\item Specify precisely (at runtime) the action to take if an error is detected. 
+
+\item Link translation units compiled with different levels of runtime validation. 
+
+\end{itemize}
+
+This goals are achieved as it is the client the one who makes the choice on
+whether checks are activated or deactivated.
+
+\subsection{Examples}
+
+\subsubsection{Contract checking}
+
+\begin{lstlisting}
+std::size_t other_strlen(onst char * str) 
+{
+  CONTRACT_ASSERT(str);
+  // return length
+}
+\end{lstlisting}
+
+This example can be easily expressed as:
+
+\begin{lstlisting}
+std::size_t other_strlen(onst char * str) 
+  expects(str!=nullptr)
+{
+  // return length
+}
+\end{lstlisting}
+
+\subsubsection{Safe contract checking}
+
+\begin{lstlisting}
+int get_int_array_element(int *array, int length, int index) 
+{ 
+ CONTRACT_ASSERT_SAFE(0 <= index ); 
+ CONTRACT_ASSERT_SAFE(index < length); 
+
+ return array[index]; 
+} 
+\end{lstlisting}
+
+If the distinction between a contract and a \emph{safe} contract is needed,
+\emph{safe} versions of contracts could be added.
+
+\begin{lstlisting}
+int get_int_array_element(int *array, int length, int index) 
+  expects_safe(
+    0<=index &&
+    index < length)
+{ 
+ return array[index]; 
+} 
+\end{lstlisting}
+
+However, this mode could easily lead to may developers defaulting to this mode
+and resulting in over-checking. In any case, moving the checks to the interface
+could allow to avoid the checks if they can be proved unneeded.
+
+\subsubsection{Violation handling}
+
+Setting a contract violation handler is supported by this paper and no
+significant deviation from N3997 is seen.
+
+\subsubsection{Testing contracts}
+
+N3997 also provides a mechanism for testing that a function correctly tests
+against its contract. This is done via macros 
+\texttt{TEST\_CONTRACT\_ASSERT\_PASS} and
+\texttt{TEST\_CONTRACT\_ASSERT\_FAIL}.
+This feature is not currently addressed in this proposal. However, mechanisms
+could be envisioned if this is really a needed feature. 

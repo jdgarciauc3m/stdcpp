@@ -1,0 +1,321 @@
+\section{Alternatives}
+
+Mechanisms have been proposed in the past to handle correctness both in the
+library and the language level.
+
+\subsection{Library solutions}
+
+Many solutions have been proposed for supporting contracts in C++.
+
+\subsubsection{The \texttt{assert} macro}
+
+The most classical solution has been extensive use of \texttt{assert} macro from
+C. The macro expands to a call to \texttt{abort()} when macro \texttt{NDEBUG} is
+not defined. Otherwise it expands to nothing. This leads to a set of issues:
+
+\begin{itemize}
+
+\item Assertions are evaluated in the callee site. This means that decision
+about checking is taken when the callee is compiled. Thus, one can have either a
+fully checked library with a performance penalty or a faster but unchecked
+library.
+
+\item Assertions cannot be distinguished from regular code. This makes impossible
+for a compiler to take advantage from semantic information provided in the form
+of a contract. This information could eventually be used for optimizations or
+for supporting formal or semi-formal verifications.
+
+\item Assertions do not allow to distinguish between different kinds of
+conditions. Making these distinctions is important if they are going to be
+activated/deactivated separately.
+
+\end{itemize}
+
+\subsubsection{Centralized defensive-programming library}
+
+The most recent proposal \cite{n3997} in the C++ standards committee about contract programming suggested a
+library solution for standardization. The proposal contained:
+
+\begin{itemize}
+
+\item A definition of a set of build modes (\emph{safe-build}, \emph{debug},
+\emph{optimized}).
+
+\item A configuration violation-handler mechanism to allow the application
+developer to make its choice at run-time among several options (including
+aborting the program, throwing an exception, \ldots).
+
+\item A set of macros for expressing assertions inside implementations of
+functions.
+
+\end{itemize}
+
+\subsubsection{Limitations of library solutions}
+
+While this approach definitely presents key concepts in terms of contract
+programming, it seems to be focused on preconditions and does not clarify a
+route for postconditions and/or invariants.
+
+A key point is the fact that a library solution effectively makes the contract
+part of the implementation. In contrast, a contract should be seen as part of
+component specification. That approach would also allow that different clients
+may use the component with or without contract checking.
+
+The introduction of a library solution for contract checking would also prevent
+a later language-based solution. A language solution may provide opportunities
+for better development tools. In particular:
+
+\begin{itemize}
+
+\item Language-based solution may be a corner-stone to support formal
+verification tools. Experiences with \emph{SPARK}
+(\url{http://www.spark-2014.org/}) have shown that a language-based contract
+mechanism is essential for formal verification.
+
+\item A compiler may use the contract information for better code generation and
+take advantage of the extra information for code optimization.
+
+\end{itemize}
+
+\subsection{Language solutions}
+
+In 2005 a proposal to add contract programming was considered by the Evolution
+Working Group. The initial proposal~\cite{n1613} contained a discussion on reasons to prefer
+a language solution over a library solution. Among others, the following were
+included:
+
+\begin{itemize}
+
+\item Side effects cannot be detected by library solutions.
+
+\item Assertions about return value or about side-effects cannot be done without manually copying the
+result.
+
+\item There is no clear mechanism for inheriting assertions in public virtual
+functions.
+
+\end{itemize}
+
+Proposal~\cite{n1773} was discussed at the Lillehammer meeting.
+Minutes are rather short:
+
+\vspace{12pt}
+\noindent
+\framebox[\textwidth][l]{\parbox{.99\textwidth}{
+(discussed) N1773 05-0033 : Proposal to add Contract Programming to C++ (revision 2) L. Crowl, T. Ottosen
+
+Straw poll: Evaluate synergies (7/4/3/0) 
+
+(Means: authors get 1 hour floor time on the next meeting to present their findings)
+}}
+\vspace{12pt}
+
+At Mont Tremblant meeting a revised proposal~\cite{n1866} was discussed. However
+no consensus could be achieved on whether C++0x should pursue contract
+programming.
+
+The proposal included static assertions and runtime assertions. In this paper
+the focus is on runtime assertions, as static assertions can be handled by other
+means in the language. The basic approach included the ability to add
+preconditions and postconditions to functions and invariants to classes. A
+simplified example of its use is the following:
+
+\begin{lstlisting}[style=cppcontract05]
+double sqrt( double r )
+    precondition
+    {
+        r > 0.;
+    }
+    postcondition( result )
+    {
+        equal_within_precision( result * result, r );
+    }
+\end{lstlisting}
+
+Another interesting feature was the use of \texttt{if} statements to express
+implication assertions:
+
+\begin{lstlisting}[style=cppcontract05]
+class vector {
+  // ...
+  iterator begin()
+    postcondition(result) { if (empty()) result==end(); }
+  // ...
+};
+\end{lstlisting}
+
+In this set of proposals the default behavior when a contract is violated is to
+call \texttt{terminate()}. However, a set of functions are provided to change
+this default behavior by setting a handler:
+
+\begin{lstlisting}
+typedef void (*broken_contract_handler)();
+    
+broken_contract_handler set_precondition_broken_handler(broken_contract_handler r) throw();
+broken_contract_handler set_postcondition_broken_handler(broken_contract_handler r) throw();
+broken_contract_handler set_class_invariant_broken_handler(broken_contract_handler r) throw();
+broken_contract_handler set_namespace_invariant_broken_handler(broken_contract_handler r) throw();
+\end{lstlisting}
+
+This model also included specific rules for handling the cases from inheritance
+and virtual functions:
+
+\begin{enumerate}
+
+\item Only the first declaration/definition of F can have a precondition.
+
+\item Pure virtual functions can have contracts.
+
+\item Postconditions from a function in a base class and the overridden version
+in a derived class are \emph{AND}ed together.
+
+\item If \emph{F} overrides more than one virtual function due to multiple
+inheritance, the precondition on \emph{F} is an \emph{OR}ing of the
+preconditions of all the functions \emph{F} override and the postcondition on
+\emph{F} is an \emph{AND}ing of the postconditions of all the functions \emph{F}
+override and \emph{F}'s own postcondition.  \end{enumerate}
+
+The implementation model proposed implied that all the code was generated at the
+callee site. This approach allowed to address code bloat issues. For every
+function with a contract the compiler would generate three functions:
+
+\begin{enumerate}
+
+\item \textbf{Core function}: This is the function without any checking at all.
+
+\item \textbf{Postcondition evaluator}: This one calls the core function and
+then executes the postcondition checks.
+
+\item \textbf{Precondition evaluator}: This one executes de precondition checks
+and the calls the postcondition evaluator.
+
+\end{enumerate}
+
+Still this model supports the concepts of multiple build modes, where
+postconditions can be activated/deactivated when compiling the callee and
+preconditions can be activated/deactivated when compiling the caller.
+
+This model requires to standardize multiple build modes which would be something
+new to the C++ standard. Besides, it prevents any attempt to optimize out
+unneeded checks.
+
+
+
+\subsection{Other languages with contract support}
+
+\subsubsection{Eiffel}
+
+A classical reference in contract programming is the Eiffel
+language~\cite{iso-eiffel,ecma-eiffel}.
+
+A typical contract example in Eiffel is as follows:
+
+\begin{lstlisting}[language=Eiffel]
+class DICTIONARY [ELEMENT]
+feature
+	put (x: ELEMENT; key: STRING) is
+		require
+			count <= capacity
+			not key.empty 
+		ensure
+			has (x)
+			item (key) = x
+			count = old count + 1
+		end
+
+	... Interface specifications of other features ...
+
+invariant
+	0 <= count
+	count <= capacity
+end
+\end{lstlisting}
+
+An Eiffel implementation (section 8.8.29 of \cite{ecma-eiffel}) must provide
+facilities for enabling and disabling assertion monitoring. It allows a variety
+of methods for setting the assertion monitoring level either statically (at
+compile time) or dynamically (at runtime). This can be done through control
+information in the Eiffel text or through outside elements such as a user
+interface or a configuration file.
+
+Eiffel includes preconditions, postconditions, class invariants and loop
+invariants. check instructions and loop variants. Each of this check can be
+activated separately either for specific classes, specific \emph{clusters} or
+the entire system.
+
+At least an implementation must support the following for modes:
+
+\begin{enumerate}
+
+\item Statically disable all monitoring for the entire system.
+
+\item Statically enable precondition monitoring for an entire system.
+
+\item Statically enable precondition monitoring for specified classes.
+
+\item Statically enable all assertion monitoring for an entire system.
+
+\end{enumerate}
+
+If an assertion is violated an exception (\texttt{ASSERTION\_VIOLATION}) is
+raised to notify that violation.
+
+\subsubsection{Ada 2012}
+
+Ada~\cite{Ada2012} has recently incorporated contract programming that was
+successfully used previously in SPARK. The approach is rather similar to Eiffel.
+
+\begin{lstlisting}[language=Ada]
+procedure Push (S: in out Stack; E: in Element)
+ with Pre => Not_Full (S),
+     Post => (S.Length = S'Old.Length + 1) and
+             (S.Data (S.Length) = E) and
+             (for all J in 1 .. S'Old.Length => 
+                S.Data (J) = S'Old.Data (J)); 
+\end{lstlisting}
+
+If an assertion is violated an exception is raised to notify that violation.
+
+\subsubsection{D}
+
+The D programming language (\url{http://dlang.org}) also provides a contract
+mechanism.
+
+\begin{lstlisting}[style=dlang]
+long square_root(long x)
+  in
+  {
+    assert(x >= 0);
+  }
+  out (result)
+  {
+    assert((result * result) <= x && (result+1) * (result+1) > x);
+  }
+  body
+  {
+    return cast(long)std.math.sqrt(cast(real)x);
+  }
+\end{lstlisting}
+
+It also allows the definition of invariants:
+
+\begin{lstlisting}[style=dlang]
+class Date {
+  int day;
+  int hour;
+
+  invariant // start class invariant
+  {
+    assert( 1 <= day && day <= 31 );
+    assert( 0 <= hour && hour < 24 );
+  }
+}
+\end{lstlisting}
+
+In contrast with other options, D allows any arbitrary statement to appear in a
+precondition, postcondition or invariant making necessary to use the
+\texttt{assert} statement. This also makes possible that contracts may exhibit
+side effects.
+
+Again, when a violation occurs an error is thrown. However, in release mode all
+checks are removed.

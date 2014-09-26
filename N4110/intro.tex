@@ -1,0 +1,132 @@
+\section{Introduction}
+
+In the design of any library there is a tension between two issues that can be
+seen as related: correctness and robustness.  \emph{Correctness} can be seen as
+the degree to which a software component matches its specification.
+\emph{Robustness} is the ability of a software component to react appropriately
+to abnormal conditions.
+
+Currently the C++ language and many libraries use a single feature for managing both
+properties: exception handling. 
+
+When a failure happens we use exceptions as an error reporting mechanism, to
+notify that an error has occurred and needs to be handled somewhere else. In
+this way, we allow decoupling the error identification from the error handling.
+
+Besides, when a library detects that some assumed condition has not been met, it
+needs a mechanism to react properly. We call this situation a \emph{contract
+violation}. Some libraries just decide not to check contract violations and just
+document those options. In that case (e.g. the C++ Standard Library), a contract
+violation leads to undefined behavior.
+
+In this paper, I claim that correctness and robustness are orthogonal properties
+of a program and that they should be managed independently. This idea is not new, and
+the approach of independent management of correctness and robustness can be
+found in other somehow similar languages (e.g.  Ada, Eiffel, D).
+
+\subsection{Robustness in the C++ standard library}
+
+\emph{Robustness} is related to the identification and handling of abnormal
+situations. Normally, these errors occur even if a program is completely
+correct. A typical example is a program that cannot read from a file. Such a
+failure is treated by throwing an exception an catching it in a different
+context. Another example is the failure to allocate dynamic memory.
+
+Currently, the C++ standard library identifies the cases when an abnormal
+situation may happen, by specifying i) the condition that may cause that situation
+and ii) the exception that will be thrown to notify of that situation.
+
+For example, the standard allocator \emph{std::allocator} has the following \emph{Throws:}
+clause in the specification of its \emph{allocate} member function:
+
+\vspace{1em}
+\noindent
+\framebox[\textwidth][l]{
+\emph{Throws}: \texttt{bad\_alloc} if the storage cannot be obtained.
+}
+\vspace{1em}
+
+Even if a program is correct, it may fail in allocating memory.
+
+\subsection{Correctness in the C++ standard library}
+
+\emph{Correctness} is related to finding programming errors. Those situations happen
+due to incorrectly programmed software. A correctly stated precondition
+violation happens because the caller is not fulfilling that precondition before
+performing the call. A correctly stated postcondition happens because the callee
+is not fulfilling the postcondition after execution. A program failure (a
+robustness error) cannot be avoided in a program, as it usually depends
+on some external condition. In contrast, a contract violation (a correctness
+error), should never happen in a correctly written program.
+
+In its current form, the C++ standard library documents the preconditions of a function.
+Section 17.4.6.11 states:
+
+\vspace{1em}
+\noindent
+\framebox[\textwidth][l]{\parbox{.99\textwidth}{
+\emph{Violation of the preconditions specified in a function’s Requires:
+paragraph results in undefined behavior unless the function’s Throws: paragraph
+specifies throwing an exception when the precondition is violated.}
+}}
+\vspace{1em}
+
+Thus, in practice, there are two approaches for contract violations in the
+standard library: either a precondition violation may result in undefined behavior
+or it may be notified by throwing an exception.
+
+\subsection{The narrow and wide contracts}
+
+During C++11 standardization final stage there were arguments against aggressive
+use of \textbf{noexcept}~\cite{n3248}. The key argument was that the fundamental
+implication was that such approach would make \emph{``functions marked
+\texttt{noexcept} difficult to test''}.  To overcome this difficulty two
+approaches were outlined: either to lift the requirement that a
+\texttt{noexcept} violation would result in a call to \texttt{terminate} or to
+impose a severe criteria on when a standard library function can be marked
+\texttt{noexcept}.
+
+The route taken by C++11 was the definition of those criteria~\cite{n3279} based
+on the definitions of \emph{wide contracts} (does not specify any undefined behavior
+and has no precondition) and \emph{narrow contracts} (results in undefined
+behavior when a precondition is violated). With those definitions the adopted guidelines
+were:
+
+\vspace{1em}
+\framebox[\textwidth][l]{\parbox{.99\textwidth}{
+\begin{itemize}
+
+\item No library destructor should throw.
+
+\item Each library function having a wide contract, that LWG agrees cannot throw, 
+should be marked unconditionally \texttt{noexcept}.
+
+\item If a library swap function, move-constructor, or move-assignment operator
+is conditionally-wide, then it should be marked conditionally \texttt{noexcept}.
+
+\item No other function should be marked conditionally \texttt{noexcept}.
+
+\item Library functions designed for compatibility with ``C'' code, may be
+marked as unconditionally noexcept.
+
+\end{itemize}
+}}
+\vspace{1em}
+
+There are two opposed views about the use of \texttt{noexcept}. On one hand,
+there is the view that \texttt{noexcept} was designed to solve a very specific
+problem to correctly handle throwing move constructors. This view tries to
+limit \texttt{noexcept} to move operations. On the other hand, there is a
+movement of marking \texttt{noexcept} as much functions as possible just
+because they me lead to a performance benefit.
+
+However, \texttt{noexcept} is a specification of an interface to indicate that a
+a certain function does not throw exceptions at all. No less and no more than
+that. Thus, those functions that do not throw to notify that an abnormal
+situation has happened should be \texttt{noexcept}.
+
+The current library guidelines make that functions that are conceptually
+\texttt{noexcept} are not marked so. This may lead to some performance loses.
+In fact, this may be seen to be against the principle of zero-overhead. However,
+the key point is a different issue. Functions are not marked \texttt{noexcept}
+even if they should not be throwing at all.

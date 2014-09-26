@@ -1,0 +1,19 @@
+\section{A contract for vector}
+
+\begin{lstlisting}
+template <typename T>
+class vector {
+public:
+  vector();
+
+  T & operator[](int i) noexcept()
+    requires(i>=0 && i<sz);
+
+  void push_back(T & x) 
+    ensures(vec[sz-1] == x);
+
+private:
+  int sz;
+  T * vec;
+};
+\end{lstlisting}

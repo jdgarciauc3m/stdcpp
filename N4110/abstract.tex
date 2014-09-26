@@ -1,0 +1,10 @@
+\section*{Abstract}
+
+This paper explores the design space for introducing contracts as part of the
+interface of functions and types. The goal is to address the problem of
+specifying an interface (with special attention to standard library interfaces)
+making a clear distinction between a contract violation and an explicitly thrown
+exception. Preconditions and postconditions are attached to function
+declarations (i.e. to interfaces) rather than to definitions, and are, in
+principle, checked before and after a function's definition is entered. No
+macros are needed.

@@ -1,0 +1,62 @@
+\section{A contract for string}
+
+This section outlines a partial specification of a \texttt{string} class.
+
+\begin{lstlisting}
+template <typename charT, typename traits = char_traits<charT>,
+    typename Allocator = allocator<charT> >
+class basic_string {
+public:
+
+  explicit basic_string(const Allocator & a)
+    expects(
+      data() != nullptr &&
+      size() == 0
+    );
+
+  basic_string(const basic_string & str)
+    ensures(valid_copy(str));
+
+  basic_string(const basic_string && str)
+    ensures(valid_copy(str) && str.valid_state());
+
+  basic_string(const basic_strig & str,
+               size_type pos, size_type n = npos,
+               const Allocator & a = Allocator())
+    expects<std::out_of_range>(pos <= str.size())
+    ensures(valid_copy_n(str, n));
+
+  basic_string(const charT * s, size_type n,
+               const Allocator & a = Allocator())
+    expects(s != nullptr)
+    ensures(valid_copy_n_cstr(s,n));
+
+  // ...
+
+private:
+  bool valid_copy(const basic_string & str) const {
+    return data() != nullptr &&
+      equal(data(), data() + size, str.data(), str.data() + str.size()) &&
+      size() == str.size() &&
+      capacity() >= size();
+  }
+
+  bool valid_copy_n(const basic_string & str, size_type n) const {
+    auto rlen = min(n, str.size());
+    return data() != nullptr &&
+      equal(data(), data() + rlen, str.data(), str.data() + str.size()) &&
+      size() == rlen &&
+      capacity() >= size();
+  }
+
+  bool valid_copy_n_cstr(const charT * s, size_type n) const {
+    return data() != nullptr &&
+      equal(data(), data() + n, s, s+n) &&
+      size() == n &&
+      capacity() >= size();
+  }
+
+}
+invariant(size() <= capacity());
+
+\end{lstlisting}

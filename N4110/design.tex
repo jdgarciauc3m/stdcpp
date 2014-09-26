@@ -1,0 +1,550 @@
+\section{Exploring the design space}
+
+Both, library solutions and language solutions, for contract specifications
+exhibit advantages and drawbacks. However, a language solution seems much more
+flexible and opens opportunities for better analysis of programs.
+
+In this section, a first exploration of the design space for a language based
+solution is performed. The goal is to present the alternatives for such design.
+In particular, the focus is in the general design and not in the concrete
+syntax. Thus the specific used syntax is only for exploration.
+
+\vspace{1em}
+\noindent
+\textbf{Remark}: \emph{A series of keywords are used for illustration only. Different
+keywords could be used. Depending on the final design it is likely that they
+could be contextual keywords.}
+
+\subsection{Design principles for a contracts programming mechanism}
+
+Before exploring concrete syntax and semantics, this section proposes a set of
+design principles to guide the rest of the paper:
+
+\begin{itemize}
+
+\item An operation contract should allow to express its preconditions and
+postconditions.
+
+\item The language should provide tools for expressing invariants at different
+scopes.
+
+\item Contract specification should be part of the specification of an entity
+(not the implementation).
+
+\item Violation of a contract and abnormal error handling should be handled
+orthogonally.
+
+\item Contracts should be well integrated with polymorphism.
+
+\end{itemize}
+
+\subsection{Operation contracts}
+
+Any operation may have an associated contract formed by its preconditions and
+postconditions.
+
+\subsubsection{Expressing preconditions}
+
+Any operation specification may have in its declaration a list of preconditions
+that must be satisfied in order to be able to run properly.
+
+\begin{lstlisting}
+double square_root(double x)
+  expects(x>=0.0);
+\end{lstlisting}
+
+\cppquestion{How are multiple preconditions expressed? }
+
+\paragraph{Option 1} Multiple requirement clauses.
+
+This option allows for syntactically delimiting every precondition. This
+slightly related to the fact that Eiffel's assertions are named.
+
+\begin{lstlisting}
+class myvector {
+//...
+  double get_at(int i)
+    expects(i>= 0)
+    expects(i<size)
+    expects(vec != nullptr);
+//...
+private:
+  double * vec;
+  int size;
+};
+\end{lstlisting}
+
+However this option seems to exhibit a verbosity that cannot be easily
+justified. Besides, the option could lead to developers making use of macros to
+get rid of this additional verbosity.
+
+\paragraph{Option 2}: Single block of conditions.
+
+A single block with multiple conditions (each one being semicolon terminated)
+could be used. This would reduce the verbosity of option 1, while keeping clear
+separation of individual preconditions.
+
+
+\begin{lstlisting}
+class myvector {
+//...
+  double get_at(int i)
+    expects{
+      i>= 0;
+      i<size;
+      vec != nullptr;
+    };
+//...
+private:
+  double * vec;
+  int size;
+};
+\end{lstlisting}
+
+\paragraph{Option 3} Combine through the \texttt{\&\&} operator.
+
+This seems the simplest and more general approach, by allowing the use of
+general boolean operators.
+
+\begin{lstlisting}
+class myvector {
+//...
+  double get_at(int i)
+    expects(i>= 0 && i<size && vec != nullptr);
+//...
+private:
+  double * vec;
+  int size;
+};
+\end{lstlisting}
+
+One could argue that this option makes slightly more difficult to identify
+individual conditions or make the code less readable. However, it is almost
+syntactically equivalent to option 2. Besides, existing \emph{asserts} could be
+easily transformed to this form.
+
+\cppquestion{What kind of expressions should be allowed in a precondition?}
+
+Every precondition is a boolean expression that can be evaluated at run-time.
+However, a precondition is an expression that should not have any semantic
+effect on the operation it is associated with. It only states when the operation
+can be correctly run.
+
+Thus the option taken here is to allow any boolean expression that has no side
+effect.
+
+\begin{lstlisting}
+void f(int i)
+  expects(i++ > 0); // Not allowed: Side effect
+\end{lstlisting}
+
+\cppquestion{What kind of functions should be admissible to call from a
+precondition?}
+
+\paragraph{Option 1} Any function that has no side-effects.
+
+In principle, it should be safe to call any function that is guaranteed to have
+no side-effects. However, it is possible that if the function body is not
+visible to the point where the precondition is defined the absence of
+side-effects cannot be guaranteed.
+
+\paragraph{Option 2} Only \texttt{constexpr} functions.
+
+This option is quite safe, although it is possible is more restricted than required.
+An argument favoring this option is that it could be revised in a later version.
+
+\subsubsection{Expressing postconditions}
+
+Any operation specification may have in its declaration a list of postconditions
+that the developer guarantees to be held after the operation execution.
+
+\begin{lstlisting}
+class string {
+  // ...
+
+  void reserve(size_type res_arg=0)
+    expects(res_arg < max_size())
+    ensures(capacity() >= res_arg);
+
+  // ...
+};
+\end{lstlisting}
+
+The variants previously discussed for multiple conditions in preconditions could
+also be applied to postconditions.
+
+\cppquestion{How should the return value be used in postconditions?}
+
+A postcondition may be established on the value returned by a function. In that
+case, it is important to establish a syntax for referring the returned value.
+
+\paragraph{Option 1} Use an arbitrary name.
+
+This could be used by following syntax from D or previous proposal for C++,
+where this name is an argument to the postcondition clause.
+
+\begin{lstlisting}
+double square_root(double x)
+  expects(x>=0.0)
+  ensures(result)(result>=0.0);
+\end{lstlisting}
+
+\paragraph{Option 2} Use a keyword to refer the returned value.
+
+An obvious choice here is to reuse the \texttt{return} keyword in the context of
+a postcondition.
+
+\begin{lstlisting}
+double square_root(double x)
+  expects(x>=0.0)
+  ensures(return>=0.0);
+\end{lstlisting}
+
+However, this reuse of \texttt{return} keyword could lead to parsing problems.
+
+\paragraph{Option 3} Use the function name to reference the result.
+
+This option makes the function name to evaluate to the result only in the
+context of a postcondition.
+
+\begin{lstlisting}
+double square_root(double x)
+  expects(x>=0.0)
+  ensures(square_root>=0.0);
+\end{lstlisting}
+
+\cppquestion{How should previous values be expressed in postconditions?}
+
+In a postcondition, every argument has two values of interest. The value
+previous to the operation execution and the value after the value execution.
+Both values may be of interest, requiring notations to make difference between
+the initial value and the final value.
+
+In the spirit of making simple things simple, the regular name of a variable
+should make reference (in the context of a postcondition) to the value after the
+operation execution. This design decision makes necessary to provide a mechanism
+to denote a previous value.
+
+\paragraph{Option 1} Use an operator to denote previous value.
+
+Such an operator should probably be named (e.g. \texttt{pre}, \texttt{prev},
+\texttt{old}, \ldots) as any other operator has already a meaning.
+
+\begin{lstlisting}
+void increment(int & x)
+  ensures(x == pre(x) + 1);
+\end{lstlisting}
+
+\textbf{Remark}: Applying operator \texttt{pre} to an object implies taking a
+copy of that object before running the function. Thus, it can only be applied to
+types that are \emph{copy-constructible}
+
+\subsubsection{Invariants}
+
+\cppquestion{Should class invariants be considered?}
+
+Type invariants correspond to class level. Thus, this paper proposes to add them
+after a class definition.
+
+\begin{lstlisting}
+class my_vector {
+// ...
+}
+invariant (size >= 0 && capacity >= size);
+\end{lstlisting}
+
+An invariant is a condition that needs to be satisfied before the execution of
+every public member function and is guaranteed to be satisfied also after the
+execution of every public member function.
+
+Although this paper proposes the idea of class invariants, it is acknowledged
+that is something that needs further study.
+
+\cppquestion{Should \texttt{namespace} invariants be considered?}
+
+Although previous proposals have considered the idea of
+\emph{namespace-invariants}, this paper does not address this issue.
+
+\cppquestion{Should \emph{loop-invariants} be considered?}
+
+Loop-invariants would allow attaching invariants to a loop. One advantage is to
+explicitly state the conditions that are preserved among iterations of a loop.
+
+\begin{lstlisting}
+for (int i=0; predicate(i); advance(i)) {
+  do_something(i);
+}
+invariant(i>=0 && i< 100);
+\end{lstlisting}
+
+
+\subsection{Contract checking}
+
+An issue that has been discussed for a long time is whether contracts should be
+checked at run-time and, if so, whether this is something that should be removed
+in production builds.
+
+One extreme position is that all checks should always remain in production
+builds, as pointed out by Hoare~\cite{hoare:1973}:
+
+\begin{quote}
+\emph{
+\ldots it is
+absurd to make elaborate security checks on debugging runs, when no
+trust is put in the results, and then remove them in production runs,
+when an erroneous result could be expensive or disastrous. What would
+we think of a sailing enthusiast who wears his lifejacket when training
+on dry land, but takes it off as soon as he goes to sea?
+}
+\end{quote}
+
+On the other extreme, we may find reasoning about excessive checking and
+associated run-time costs.
+
+One of the reasons why the C++ standard library is able to provide a good
+performance is the fact that many preconditions are documented but not checked.
+It is the responsibility of the caller to perform calls that do not violate
+requirements. In order to avoid any hurt to that property, the default semantic
+is that libraries do not include contract checking. It should be the caller the one
+to decide if the contract needs to be checked or not. 
+
+Having contract checking activated by default could lead to repeatedly
+performing the same (or very similar checks). This cost would be unacceptable
+for many kind of applications.
+
+To achieve this goal, functions requirements are not part of operations
+implementation.  They belong to the operation interface. This allows that
+checking if needed is part of the calling code and not of the called code.
+
+\cppquestion{How should the caller control contract checking?}
+
+\paragraph{Option 1} A compiler flag to control contract checking.
+
+The basic idea is to have one or more compiler flags to enforce contract
+checking. One drawback of this option is that activation/deactivation would be
+done externally to source code, leading to a bunch of compiled objects for the
+same library. Besides, the granularity level for activation/deactivation would
+be the translation unit.
+
+\paragraph{Option 2} An attribute could be used to express checking.
+
+this option would imply mandating a default and using an attribute for a
+block-scope to change that default. This approach opens the door to the
+discussion of whether contract checking has a semantic impact on a program. This
+controversial issue is not discussed here.
+
+If the default is checked contracts, one could envision the following:
+
+\begin{lstlisting}
+void f() {
+  myvector v{20}; // A vector of 20 doubles
+  v[2] = 3.0; // Contract checked here
+  v[42] = 2.1; // Contract violation
+
+  [[unchecked]] 
+  {
+    v[2] = 1.0; // OK and fast
+    v[99] = 0.0; // Undefined behavior
+  }
+}
+\end{lstlisting}
+
+If the default is unchecked contracts, one could envision the following:
+
+\begin{lstlisting}
+void f() {
+  myvector v{20}; // A vector of 20 doubles
+  
+  [[checked]]
+  {
+    v[2] = 3.0; // Contract checked here
+    v[42] = 2.1; // Contract violation
+  }
+  
+  v[2] = 1.0; // OK and fast
+  v[99] = 0.0; // Undefined behavior
+}
+\end{lstlisting}
+
+To keep backwards compatibility with existing practice in the standards library,
+the best option is probably to set the default to unchecked code.
+
+\paragraph{Option 3} A keyword for changing checking mode.
+
+This option is similar to the attribute option but uses a keyword avoiding the
+semantic effect debate of attributes. For example:
+
+\begin{lstlisting}
+double get_value(double * v, int sz, int i)
+  expects(
+    v != nullptr &&
+    i >=0 &&
+    i < sz &&);
+
+void f() {
+  double v[20];
+  v[2] = 3.0;
+  get_value(v, 20, 2); // OK
+  double x = get_value(v, 20, 30); // Undefined behavior
+
+  checked {
+    double y = get_value(v, 20, 30); // Precondition check failed
+  }
+}
+\end{lstlisting}
+
+This approach opens the opportunity for some conditions to be
+checked at compile time.
+
+\cppquestion{Should there be more than one checking mode?}
+
+\paragraph{Option 1} Only one checking mode.
+
+This is the simplest option where a call either checks all the contracts or
+performs no checking at all. One could argue, that in some conditions checking
+conditions at operation entry is enough and the exit checking should be avoided
+for performance reasons.
+
+\paragraph{Option 2} Multiple checking modes.
+
+This option could use a set of checking modes. Those checking modes could be a
+parameter for the checking attribute or clause (or the compiler flags).
+
+Different checking modes could be:
+
+\begin{itemize}
+
+\item \textbf{none}: No checking at all.
+
+\item \textbf{preconditions}: Only preconditions are checked.
+
+\item \textbf{postconditions}: Preconditions and postconditions are checked.
+
+\item \textbf{full}: Everything is checked.
+
+\end{itemize}
+
+\cppquestion{Will multiple versions lead to code bloat?}
+
+The object code of a function will not contain the checking as the proposed
+model moves this checking to the call site. However, this does not mean that
+the call site needs to emit this additional code just surrounding every checked
+call. If checks cannot be proved unnecessary, it might well refactor those
+checks into an auxiliary function.
+
+Of course, this issue deserves specific investigation if a language solution
+like the explored in this paper is pursued.
+
+\subsection{The effects of a precondition violation}
+
+When a precondition violation happens, this is a symptom that the running
+program is incorrect. Thus the default behavior should be calling
+\texttt{terminate}.
+
+In most cases, this behavior is the desired one. However, alternate behaviors
+may be explored.
+
+One option, would be to allow the programmer to set one or more contract
+violation handlers. When a check fails the handler function is called.
+
+Another option is that an exception is thrown when the contract is violated. It
+is relevant to remark that the exception can be safely thrown in this case (even
+if the function is \texttt{noexcept}) as it would be thrown in the caller side
+and not in the callee side.
+
+In case of using an exception, it would be reasonable to use a standard
+exception (e.g. \texttt{contract\_violation} including information about the call
+site (file name, line number, function, \ldots).
+
+\subsection{Strong requirements}
+
+There are functions with requirements that need to be checked always. Even those
+requirements may benefit from moving the check to the call site, as they could
+be eventually elided under specific conditions and they enrich the semantic
+information of the call site.
+
+\begin{lstlisting}
+class vector_double {
+  // ...
+
+  double & operator[](int i) 
+    expects(i<size());
+
+  double & at(int i)
+    expects<out_of_range>(i<size());
+
+  // ...
+};
+\end{lstlisting}
+
+Strong requirements will be always checked regardless the build mode or the use
+of any attribute or block keyword that could inhibit other checks.
+
+Without strong checks, preconditions would be duplicated as they would be once
+as preconditions and again in the code of the function so that they could throw
+the specific exception. An optimizer could in some cases eliminate the check for
+the precondition, but would never be able to eliminate the check in the function
+implementation. Moreover, having strong preconditions allows such functions to
+be marked as \texttt{noexcept}.
+
+\subsection{Interactions with inheritance}
+
+No major problem is seen in the case of inheritance. Following the path of other
+existing solutions, should be restricted to virtual functions redefinitions. The
+general principle is that preconditions cannot be strengthened and
+postconditions cannot be weakened.
+
+\subsection{Interactions with function pointers}
+
+The fact that contracts are part of the interface and not of the
+implementation generates a problem with pointer to functions and pointer to
+member functions.
+
+\cppquestion{Should contracts be checked through pointer to functions?}
+
+\paragraph{Option 1} No checking at all.
+
+This is the simplest solution. The decision would be that when a function is
+invoked through a pointer to function, checked (if any) is bypassed.
+
+\begin{lstlisting}
+void f(int i) expects(i>0);
+
+using funcptr = void (*)(int);
+funcptr g = f;
+g(2); // OK
+\end{lstlisting}
+
+\paragraph{Option 2} Make contract part of the function type.
+
+If the contract specification is made part of the function type, then the
+compiler will be able to generate the contract checking code at the call site
+when needed. 
+
+\begin{lstlisting}
+void f(int i) expects(i>0);
+
+using funcptr1 = void (*)(int);
+using funcptr2 = void (*)(int) expects(i>0);
+funcptr1 g = f; // Error
+funcptr2 h = f; // OK
+h(2); // Performs checking if needed
+\end{lstlisting}
+
+However, this option puts all the burden on the definition of function pointers.
+It also may have many unwanted effects and questions that would need to be
+answered (e.g. should overloading on contracts make any sense at all?).
+
+\subsection{Interactions with \texttt{noexcept}}
+
+We believe that the presented approach allows making functions with a contract \texttt{noexcept}
+as the exceptions, if any, would be thrown in the caller site and not in the
+callee site.
+
+However, this issue clearly needs further study.
+
+\subsection{Run-time versus compile-time assertions}
+
+Compile time checks should not be treated as part of a contract checking
+proposal as they can be better handled as an extension to \emph{concepts}.
+
