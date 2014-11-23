@@ -29,28 +29,54 @@ members upon construction.
 This paper proposes a new type of constructor: an array constructor. An array
 constructor specifies the size of the array data member of unspecified size and
 my forward a call to the corresponding non-array constructor. The array
-constructor must always be inline, while the corresponnding non-array
+constructor must always be inline, while the corresponding non-array
 constructor does not need to be inline.
 
 \begin{lstlisting}
 class myvec {
 public:
-  myvec() : sz{2} { /* ... */ }
-  myvec(int n) : sz{n} { /* ... */ }
+  myvec[]() : v[2], myvec{} {} // Array constructor must be inline
+  myvec[](int n) : v[n], myvec{n} {} // Array constructor must be inline
 
-  myvec[]() : v[2], myvec() {}
-  myvec[](int n) : v[n], myvec() {}
+  myvec(); // Need not be inline
+  myvec(int n); // Need not be inline
 
   // ...
 private
   int sz;
   double[] v;
 };
+
+myvec::myvec() : sz{2} { /* ... */ }
+myvec::myvec(int n) : sz{n} { /* ... */ }
 \end{lstlisting}
+
+\subsection{Single constructor}
+
+An array constructor can be used as single constructor instead of forwarding to a
+non-array constructor.
+
+\begin{lstlisting}
+class myvec {
+public:
+  myvec[](int n) : sz{n}, v[n] {} // Needs to be inline
+
+  // ...
+private:
+  int sz;
+  double[] v;
+};
+\end{lstlisting}
+
+Please, note that not using forwarding construction imposes the additional requirement
+of being able to inline the constructor. When this is no desirable, still two constructors
+(an array version and a non-array version) should be used.
+
+
 
 \subsection{Implementing \emph{bs\_array}}
 
-The proposed solution alows the implementation of \cppid{bs\_array}
+The proposed solution allows the implementation of \cppid{bs\_array}
 (where bs stands for \emph{bike shed}) as a \emph{pure-library} solution.
 
 \begin{lstlisting}
@@ -71,7 +97,7 @@ public:
 
   // Range checked access
   T & at(int i);
-  const T & at(int i) cosnt;
+  const T & at(int i) const;
 
   // begin/end
   T * begin() { return v; }
@@ -88,7 +114,7 @@ private:
 };
 \end{lstlisting}
 
-I propose that a class like this is standardized. While we are not proposing a
+I propose that a class like this be standardized. While we are not proposing a
 specific name for such class, alternate names could be \cppid{auto\_array},
 \cppid{stack\_array}, \cppid{dynarray} or even \cppid{autodynarray}.
 
@@ -104,8 +130,7 @@ run-time size bound class. Such a class may have an array constructor.
 \begin{lstlisting}
 class A {
 public:
-  A[](int n) : v[n], A{n} {}
-  A(int n) : sz{n} {}
+  A[](int n) : sz{n}, v[n] {}
 private:
   int sz;
   double[] v;
@@ -113,8 +138,7 @@ private:
 
 class B {
 public:
-  B[](int n) : a{n}, B{n} {}
-  B(int n) : x{n*1.5} {}
+  B[](int n) : x{n*1.5}, a{n} {}
 private:
   double x;
   A a;
@@ -129,8 +153,7 @@ Similar restrictions apply to inheritance.
 \begin{lstlisting}
 class A {
 public:
-  A[](int n) : v[n], A{n} {}
-  A(int n) : sz{n} {}
+  A[](int n) : sz{n}, v[n] {}
 private:
   int sz;
   double[] v;
@@ -138,14 +161,30 @@ private:
 
 class B : public A {
 public:
-  B[](int n) : A{n}, B{n} {}
-  B(int n) : x{n*1.5} {}
+  B[](int n) : x{n*1.5}, A{n} {}
 private:
   double x;
 };
 \end{lstlisting}
 
 A class inheriting from a run-time sized class cannot have subclasses that add new data members.
+
+In case of multiple inheritance, only the most right base class can be a run-time sized class.
+
+\begin{lstlisting}
+class A {
+public:
+  A[](int n) : sz{n}, v[n] {}
+private:
+  int sz;
+  double[] v;
+};
+
+class B { /* ... */ };
+
+class D1 : public A, public B { /* ... */ }; // Ill-formed
+class D2 : public B, public A { /* ... */ }; // Ill-formed
+\end{lstlisting}
 
 \subsubsection{Contexts of use}
 
@@ -175,6 +214,26 @@ void f() {
 
 Operator \cppkey{sizeof} is not supported on any type or object of a \emph{run-time size bound class}.
 
+Firstly, on types \cppkey{sizeof} makes not much sense as different object of such types could require
+different amounts of storage, due to a member of unspecified size. Secondly, implementing \cppkey{sizeof}
+on objects would lead to different objects of the same type having a different size, and requiring
+additional implementation overhead.
+
+Although, there might be some implementation workarounds there is at least on national body
+that has expressed very strong opposition to this feature.
+
+\subsection{Parameter passing and return values}
+
+Parameters of \emph{run-time size bound classes} can only be passed as parameters to functions (or returned)
+when such passing mode does not imply an object copy. This restriction avoids problems with size determination.
+
+\begin{lstlisting}
+void f(bs_array<int> & a); // OK
+bs_array<double> & g(const bs_array<int> & a); // OK
+bs_array<char> h(); // Ill-formed
+void i(bs_array<long> a); // Ill-formed
+\end{lstlisting}
+
 \subsection{Inlining versus non inlining}
 
 In contrast with N3875, this proposal does not require constructors to be
@@ -195,12 +254,18 @@ modified from an example provided by Lawrence Crowl).
 // a.h
 struct A {
   bs_array<double> storage;
-  A(int n);
+  A[](int n);
 }; // Error A needs an inlined array constructor
 
 // a.cc
   extern int config;
-  A::A(int n) : storage(n*config) {}
+  A::A[](int n) : storage{n*config} {} // Not inline: Ill-formed
+
+// b.cc
+void f() {
+  A x{10}; // Ill-formed.
+  //...
+}
 \end{lstlisting}
 
 As \cppkey{struct} \cppid{A} has a data member which is a \emph{run-time size bound class}
