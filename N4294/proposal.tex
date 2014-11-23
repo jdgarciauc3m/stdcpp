@@ -219,8 +219,10 @@ different amounts of storage, due to a member of unspecified size. Secondly, imp
 on objects would lead to different objects of the same type having a different size, and requiring
 additional implementation overhead.
 
-Although, there might be some implementation workarounds there is at least on national body
-that has expressed very strong opposition to this feature.
+Finally, the size of an object is a constant value and should have the same value for every object of
+a type. For a run-time size bound class this might not be the case. For the same reason, an array of
+\emph{run-time size bound} objects is not possible, as subscripting could not be implemented for
+random access at constant time.
 
 \subsection{Parameter passing and return values}
 
