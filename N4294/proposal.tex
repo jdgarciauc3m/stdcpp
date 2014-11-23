@@ -51,6 +51,32 @@ myvec::myvec() : sz{2} { /* ... */ }
 myvec::myvec(int n) : sz{n} { /* ... */ }
 \end{lstlisting}
 
+\subsubsection{Alternate syntax for array constructors}
+
+An alternate syntax to the one proposed and that could also be used is the following:
+
+\begin{lstlisting}
+class myvec {
+public:
+  myvec[]() : v{double[2]}, myvec{} {} // Array constructor must be inline
+  myvec[](int n) : v{double[n]}, myvec{n} {} // Array constructor must be inline
+
+  myvec(); // Need not be inline
+  myvec(int n); // Need not be inline
+
+  // ...
+private
+  int sz;
+  double[] v;
+};
+
+myvec::myvec() : sz{2} { /* ... */ }
+myvec::myvec(int n) : sz{n} { /* ... */ }
+\end{lstlisting}
+
+This syntax may express more clearly intentions but at the cost of being more verbose.
+
+
 \subsection{Single constructor}
 
 An array constructor can be used as single constructor instead of forwarding to a
