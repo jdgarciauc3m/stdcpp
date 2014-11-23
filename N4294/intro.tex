@@ -1,0 +1,25 @@
+\section{Introduction}
+
+This paper revisits the proposal from N3875~\cite{n3875} and its associated
+problems and tries to find a solution to run-time bounds arrays based on
+\emph{array constructors}. The final goal is to provide a generalized way of
+defining automatic storage arrays (i.e. stack allocated or side-stack allocated)
+whose size is not known at compile time.
+
+\section{Problem}
+
+\emph{Variable Length Arrays} (VLAs) have existed in C since C99~\cite{c99}. However,
+the introduction of VLAs in C++ standard as they are, has been identified as
+problematic.
+
+Several attempts have been made to introduce a similar facility in the C++
+programming language. A solution was incorporated in the working draft of C++14
+in the Bristol meeting (N3691~\cite{n3691}). At the Chicago meeting the committe
+decided that this solution was controversial and this part was removed from the
+working draft (N3797~\cite{n3797}). The committee decided that a separate
+technical report on \emph{array extensions} should address this issue.
+
+Previous attempts to run-time sized arrays include: run-time sized arrays with
+automatic storage, dynarray, and bs\_array. A summary of such ideas can be found
+in N3875~\cite{n3875}.
+

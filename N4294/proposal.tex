@@ -1,0 +1,209 @@
+\section{Proposal}
+
+In this paper we present a simplified proposal based on N3875~\cite{n3875}.
+
+The core idea of this proposal is to allow a class to have a data member of
+unspecified size and to provide mechanisms to separate size specification
+from the rest of construction.
+
+\subsection{Arrays of run-time bound as data members}
+
+We propose a new syntax for introducing array data members of unspecified size.
+The size will be specified at construction time.
+
+\begin{lstlisting}
+class myvec {
+public:
+  // ...
+private:
+  int sz;
+  double[] v; //rtb array
+};
+\end{lstlisting}
+
+\subsection{Constructors}
+
+A \emph{run-time size bound class} needs to specify the size of its array data
+members upon construction.
+
+This paper proposes a new type of constructor: an array constructor. An array
+constructor specifies the size of the array data member of unspecified size and
+my forward a call to the corresponding non-array constructor. The array
+constructor must always be inline, while the corresponnding non-array
+constructor does not need to be inline.
+
+\begin{lstlisting}
+class myvec {
+public:
+  myvec() : sz{2} { /* ... */ }
+  myvec(int n) : sz{n} { /* ... */ }
+
+  myvec[]() : v[2], myvec() {}
+  myvec[](int n) : v[n], myvec() {}
+
+  // ...
+private
+  int sz;
+  double[] v;
+};
+\end{lstlisting}
+
+\subsection{Implementing \emph{bs\_array}}
+
+The proposed solution alows the implementation of \cppid{bs\_array}
+(where bs stands for \emph{bike shed}) as a \emph{pure-library} solution.
+
+\begin{lstlisting}
+template <class T>
+class bs_array {
+public:
+  using value_type = T;
+
+  bs_array[](int n) : v[n], bs_array{n} {}
+  bs_array(int n) : sz{n} {}
+
+  bs_array(const bs_array & a) = default;
+  bs_array(bs_array &&) = delete;
+
+  // Unchecked access
+  T & operator[](int i) { return v[i]; }
+  const T & operator[](int i)  const { return v[i]; }
+
+  // Range checked access
+  T & at(int i);
+  const T & at(int i) cosnt;
+
+  // begin/end
+  T * begin() { return v; }
+  const T * begin() const { return v; }
+  T * end() { return v+sz; }
+  const T * end() { return v+sz; }
+
+  int size() const { return sz; }
+  T * data() { return v; }
+
+private:
+  int sz;
+  T[] v;
+};
+\end{lstlisting}
+
+I propose that a class like this is standardized. While we are not proposing a
+specific name for such class, alternate names could be \cppid{auto\_array},
+\cppid{stack\_array}, \cppid{dynarray} or even \cppid{autodynarray}.
+
+\subsection{Run-time size bound objects as data members}
+
+A class that has one member of an array type of unspecified size is a
+\emph{run-time size bound object} and its size cannot be determined at compile
+time as the object size depends on the array size.
+
+A class that has a run-time size bound data member becomes itself also into a
+run-time size bound class. Such a class may have an array constructor.
+
+\begin{lstlisting}
+class A {
+public:
+  A[](int n) : v[n], A{n} {}
+  A(int n) : sz{n} {}
+private:
+  int sz;
+  double[] v;
+};
+
+class B {
+public:
+  B[](int n) : a{n}, B{n} {}
+  B(int n) : x{n*1.5} {}
+private:
+  double x;
+  A a;
+};
+\end{lstlisting}
+
+In general, a class can only have a run-time size bound data member (or 
+an array of unspecified size data member) as its last data member. 
+
+Similar restrictions apply to inheritance.
+
+\begin{lstlisting}
+class A {
+public:
+  A[](int n) : v[n], A{n} {}
+  A(int n) : sz{n} {}
+private:
+  int sz;
+  double[] v;
+};
+
+class B : public A {
+public:
+  B[](int n) : A{n}, B{n} {}
+  B(int n) : x{n*1.5} {}
+private:
+  double x;
+};
+\end{lstlisting}
+
+A class inheriting from a run-time sized class cannot have subclasses that add new data members.
+
+\subsubsection{Contexts of use}
+
+A run-time size bound object can only be used as an automatic variable.
+In particular, this paper proposes to ban any use implying direct or indirect
+use of dynamic memory. Besides an array of such objects is also forbidden.
+
+\begin{lstlisting}
+class A {
+public:
+  A[](int n) : v[n], A{n} {}
+  A(int n) : sz{n} {}
+private:
+  int sz;
+  double[] v;
+};
+
+void f() {
+  A a{4}; // OK;
+  A[4] v; // Error
+  A * p = new A{4}; // Error
+  vector<A> w; // Error
+}
+\end{lstlisting}
+
+\subsubsection{\emph{sizeof}}
+
+Operator \cppkey{sizeof} is not supported on any type or object of a \emph{run-time size bound class}.
+
+\subsection{Inlining versus non inlining}
+
+In contrast with N3875, this proposal does not require constructors to be
+generally inlined. The only constructor that needs to be inlined is the
+array constructor. Others may be inlined or not.
+
+\subsection{Size determination}
+\label{sec:inline-size-det}
+
+The current proposal implies that the size of any \emph{run-time bound array
+data member} can be derived from the environment where the inline constructor is
+defined.
+
+In particular, this proposal does not allow the following example (slightly
+modified from an example provided by Lawrence Crowl).
+
+\begin{lstlisting}
+// a.h
+struct A {
+  bs_array<double> storage;
+  A(int n);
+}; // Error A needs an inlined array constructor
+
+// a.cc
+  extern int config;
+  A::A(int n) : storage(n*config) {}
+\end{lstlisting}
+
+As \cppkey{struct} \cppid{A} has a data member which is a \emph{run-time size bound class}
+(the \cppid{bs\_array}), it is considered itself to be also a \emph{run-time size
+bound class} and it needs an inlined array constructor.
+
