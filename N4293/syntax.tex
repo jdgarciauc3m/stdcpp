@@ -93,28 +93,3 @@ class point {
     ensures{x == pre(x) + deltax && y = pre(y) + deltay};
 \end{lstlisting}
 
-\subsection{Invariants}
-
-Type invariants correspond to class level. Thus, this paper proposes to add
-them after a class definition.
-
-\begin{lstlisting}
-class my_vector {
-  // ...
-}
-invariant {
-  size >= 0 &&
-  capacity >= size
-};
-\end{lstlisting}
-
-Loop-invariants would allow attaching invariants to a loop. One advantage is to explicitly state the conditions
-that are preserved among iterations of a loop.
-
-\begin{lstlisting}
-for (int i=0; predicate(i); advance(i)) {
-  do something(i);
-}
-invariant{0<=i && i< 100};
-\end{lstlisting}
-
