@@ -186,7 +186,7 @@ class D1 : public A, public B { /* ... */ }; // Ill-formed
 class D2 : public B, public A { /* ... */ }; // Ill-formed
 \end{lstlisting}
 
-\subsubsection{Contexts of use}
+\subsection{Contexts of use}
 
 A run-time size bound object can only be used as an automatic variable.
 In particular, this paper proposes to ban any use implying direct or indirect
@@ -209,6 +209,10 @@ void f() {
   vector<A> w; // Error
 }
 \end{lstlisting}
+
+When a valid \emph{run-time size bound} object is created both its array constructor
+and the non-array constructor are used. The array constructor is used to determine the
+size of the object. The the non-array construcctor is used to initialize the object.
 
 \subsubsection{\emph{sizeof}}
 
