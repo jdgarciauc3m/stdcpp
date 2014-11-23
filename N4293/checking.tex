@@ -1,0 +1,212 @@
+\section{Contract checking}
+
+There is a tension on to which extent contracts should be checked. A contract
+design should be able to accommodate different user group needs.
+
+On one, hand there are many situations where a contract can be proved to be 
+satisfied and consequently the associated checks are unnecessary.
+
+As an example, in the following fragment, it can be proved that the expectation
+of \cppid{i<size} en ensured to be true and no check is needed.
+
+\begin{lstlisting}
+vector v(100); // ensures size==100
+for (int i=0;i<100;++i) {
+  v[i] = f(i); // expects i<size
+}
+\end{lstlisting}
+
+Besides, if a contract can be proved to be not satisfied at all the program
+can me made ill-formed.
+
+\begin{lstlisting}
+vector v(10); // ensures size==10
+for (int i=0;i<100;++i) {
+  v[i] = f(i); // expects i<size -> Ill-formed
+}
+\end{lstlisting}
+
+On the other hand, there are situations where a contract cannot be proved at
+compile-time In that case there are basically two options: either do not
+perform any checking at all, or perform some degree of checking.
+
+Performing no checking at all favors performance. This is what it is currently
+done in many standard library operations with a \emph{narrow contract}. However,
+we get this at the price of library undefined behavior.
+
+Performing checks at run-time favors correctness. This is what many debug
+implementations of the standard library do.  However, we get this additional
+correctness at the price of less performance.
+
+A solution to this tension is to make run-time checks for contracts 
+\emph{implementation-defined}. Thus, every implementation should define if
+run-time checks are performed and if so which are those checks.
+
+In summary, any implementation may opt for:
+
+\begin{itemize}
+
+\item Not perform any run-time check at all.
+
+\item Perform some degree of checking at run-time.
+
+\end{itemize}
+
+In the rest of this section, options and constraints for implementations are explored.
+
+\subsection{Non-checked implementations}
+
+Even, if an implementation decides not to perform any check at run-time, it
+is still required to perform checks at compile-time.
+
+It can be argued that allowing an implementation not to perform any run-time
+checks could lead to undesired undefined behaviors. For example:
+
+\begin{lstlisting}
+void f(int i) {
+  myvector v{20, 0.0}; // A vec of 20 doubles initialized to 0
+  v[2] = 1.0;  // Not checked. OK.
+  v[99] = 2.0; // Ill-formed. Contract violation.
+  v[i] = 3.0;  // Could be undefined behavior if i>=20
+\end{lstlisting}
+
+However, this is not worse than the current situation with language arrays and
+the \cppid{std::vector} type.
+
+\subsection{Checked implementations}
+
+An implementation that decides to perform checks at run-time is a \emph{checked
+implementation}.
+
+A \emph{checked implementation} performs checks for contracts that cannot be
+proved at compile-time.
+
+\begin{lstlisting}
+void f(int i) {
+  myvector v{20, 0.0}; // A vec of 20 doubles initialized to 0
+  v[2] = 1.0;  // Check elided.
+  v[99] = 2.0; // Ill-formed. Contract violation.
+  v[i] = 3.0;  // Run-time contract violation, if i>=20
+}
+\end{lstlisting}
+
+Contract checking is a property of the client code. This means that an
+implementation could eventually allow two translation units to use some
+function where one translation unit performs checking and a different
+translation unit does not perform that checking.
+
+\begin{lstlisting}
+// libf.h
+void f(int i) expects{i>0};
+
+// ej1.cpp with checking
+int g(int i) {
+  f(i); // Will check i>0
+  // ...
+}
+
+// ej2.cpp without checking
+int h(int i) {
+  f(i); // No checking
+  // ...
+} 
+\end{lstlisting}
+
+\subsection{Multiple checking modes}
+
+This paper makes a distinction between a build mode and a checking mode. A build
+mode defines the options used to build a program. While the standard does not
+establish any build mode at all, most vendors support multiple build modes.
+Typically those include a \emph{release} mode and a \emph{debug} mode. \textbf{No
+standardization is proposed here regarding build modes}.
+
+On the other hand, a \emph{checking mode} defines which level of checking (if any) is
+active for a specific translation unit.
+
+One approach used in other languages and approaches is to define checking modes
+in terms of which component of the contract is checked.
+Those modes could be:
+
+\begin{itemize}
+  \item \textbf{none}: No checking performed at all.
+  \item \textbf{pre}: Only precondition are checked.
+  \item \textbf{post}: Both preconditions and postconditions are checked.
+  \item \textbf{all}: Everything is checked: preconditions, postconditions, and
+invariants.
+\end{itemize}
+
+Another approach is to define several checking levels, and specify for every
+check its level. This level could be numeric, so that any check with a level
+lower than a threshold is performed. This is also compatible to the levels
+provided in \cite{n4135} with a small set of levels.
+
+A \emph{checked implementation} will define the set of checking modes that
+can be used. A checking mode is given by a pair formed by a contract type (none,
+pre, post, all) and a checking level (rel, min, debug, safe). Any checked
+implementation should define, at least those levels and may decide to define
+additional levels and their associated behavior. For example, the checking mode
+\cppid{<all,safe>} will check all contracts, and the checking mode
+\cppid{<pre,min>} will check only minimal preconditions.
+
+This leads to the need of associating to a pre or post-condition its checking
+level.
+
+\begin{lstlisting}
+void f(int i) expects{i>0}; // Checked in non rel mode.
+void f(int i) expects<min>{i>0}; // As above
+void f(int i) expects<dbg>{i>0}; // Checked in dbg and safe modes
+void f(int i) expects<safe>{i>0}; // Checked only in safe mode
+\end{lstlisting}
+
+It is important to remark that the checking mode affects to the client code when
+it is compiled. Different translation units may be compiled with different
+checking modes.
+
+\subsection{The effects of a broken contract}
+
+A key element for contracts success is which should be the effect of breaking a
+contract in a \emph{checked mode}. 
+
+Set of principles:
+
+\begin{itemize}
+
+\item Contract checking is a property of client code. Clients must be able to
+make the choice of how much (if any) checking they want to use.
+
+\item A mode is needed where no run-time overhead is added over a non contract
+based version. Still that mode, may provide diagnostics for contracts that can
+be proved broken during translation.
+
+\item Contract support should not introduce unnecessarily new undefined behaviors
+into the language.
+
+\end{itemize}
+ 
+For any checked mode, an implementation is required to perform at least the
+checks specified by the associated mode. However, an implementation is allowed
+to perform more checks than required. The behavior in response to a broken
+contract should be implementation defined.
+
+\subsubsection{Constraints on broken contracts behavior}
+
+A \emph{Checked implementation} needs to define its behavior when a checked
+contract is broken.
+
+Some choices for an implementation could include:
+
+\begin{itemize}
+
+\item \textbf{Terminate the program}: The program would be terminated. However
+it would still be allowed to set a \emph{terminate handler}.
+
+\item \textbf{Call a handler function}: This is very similar to the previous
+option but with an specific different handler function for broken contracts.
+
+\item \textbf{Throw an exception}: A pre-defined exception could be thrown when
+a contract is checked to be broken (e.g. \cppid{broken\_contract}). However,
+this option could eventually prevent that any function with a contract could be
+made \cppkey{noexcept}.
+
+\end{itemize}
+

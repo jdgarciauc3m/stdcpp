@@ -1,0 +1,120 @@
+\section{Syntax}
+
+\subsection{Preconditions}
+
+A function precondition is part of its declaration:
+
+\begin{lstlisting}
+double square_root(double x)
+  expects{x>=0};
+\end{lstlisting}
+
+When an operation has multiple preconditions they can be combined with boolean operators.
+
+\begin{lstlisting}
+class my_vector {
+//...
+  double get_at(int i)
+    expects{i>=0 && i<size && vec!=nullptr};
+//...
+private:
+  double * vec;
+  int size;
+};
+\end{lstlisting}
+
+The \cppkey{expects} clause may contain any expression that is contextually
+convertible to \cppkey{bool}. However, no side effects should be allowed in such
+predicates.
+
+\begin{lstlisting}
+void f(int i) expects{i}; // OK
+void g(int i) expects{i++}; // Ill-formed
+\end{lstlisting}
+
+In particular, an expression in a precondition may invoke functions as long as
+they do not have side effects.
+
+\begin{lstlisting}
+class my_vector {
+//...
+  double get_at(int i)
+    expects{ valid_index(i) && valid_vec() };
+//...
+private:
+  bool valid_index(i) const { return i>=0 && i<size; }
+  bool valid_vec() const { return vec!=nullptr; }
+  double * vec;
+  int size;
+};
+\end{lstlisting}
+
+\subsection{Postconditions}
+
+Any operation specification may have in its declaration a list of
+postconditions that the developer guarantees to be held after the operation
+execution.
+
+\begin{lstlisting}
+class string {
+  //...
+  void reserve(size_type res_arg = 0)
+    expects{res_arg < max_size()}
+    ensures{capacity >= res_arg};
+  //...
+};
+\end{lstlisting}
+
+Expressions in a postcondition follow the same rules than expression in preconditions.
+
+In the context of a postcondition the function name refers to the returned
+value of the function.
+
+\begin{lstlisting}
+double square_root(double x)
+  expects{x>=0.0}
+  ensures{square_root>=0.0};
+\end{lstlisting}
+
+When a value may change during function execution previous value may referred
+through operator \cppid{pre}.
+
+\begin{lstlisting}
+double increment(int & x)
+  ensures{x == pre(x) + 1};
+\end{lstlisting}
+
+Operator \cppkey{pre} can also be applied to \cppid{*this}.
+
+\begin{lstlisting}
+class point {
+  //...
+  void move(double deltax, double deltay)
+    ensures{x == pre(x) + deltax && y = pre(y) + deltay};
+\end{lstlisting}
+
+\subsection{Invariants}
+
+Type invariants correspond to class level. Thus, this paper proposes to add
+them after a class definition.
+
+\begin{lstlisting}
+class my_vector {
+  // ...
+}
+invariant {
+  size >= 0 &&
+  capacity >= size
+};
+\end{lstlisting}
+
+Loop-invariants would allow attaching invariants to a loop. One advantage is to explicitly state the conditions
+that are preserved among iterations of a loop.
+
+\begin{lstlisting}
+for (int i=0; predicate(i); advance(i)) {
+  do something(i);
+}
+invariant{0<=i && i< 100};
+\end{lstlisting}
+
