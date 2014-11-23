@@ -39,25 +39,25 @@ implementations of the standard library do.  However, we get this additional
 correctness at the price of less performance.
 
 A solution to this tension is to make run-time checks for contracts 
-\emph{implementation-defined}. Thus, every implementation should define if
-run-time checks are performed and if so which are those checks.
+\emph{implementation-defined}. Thus, every implementation should define 
+which checks are performed at run-time.
 
-In summary, any implementation may opt for:
+In summary, any implementation should offer both:
 
 \begin{itemize}
 
-\item Not perform any run-time check at all.
+\item A mode where no run-time check at all is performed.
 
-\item Perform some degree of checking at run-time.
+\item One or more modes with different degrees of checking at run-time.
 
 \end{itemize}
 
 In the rest of this section, options and constraints for implementations are explored.
 
-\subsection{Non-checked implementations}
+\subsection{Non-checked mode}
 
-Even, if an implementation decides not to perform any check at run-time, it
-is still required to perform checks at compile-time.
+Even in a non-checked mode an implementation is 
+still required to perform checks at compile-time.
 
 It can be argued that allowing an implementation not to perform any run-time
 checks could lead to undesired undefined behaviors. For example:
@@ -73,12 +73,9 @@ void f(int i) {
 However, this is not worse than the current situation with language arrays and
 the \cppid{std::vector} type.
 
-\subsection{Checked implementations}
+\subsection{Checked modes}
 
-An implementation that decides to perform checks at run-time is a \emph{checked
-implementation}.
-
-A \emph{checked implementation} performs checks for contracts that cannot be
+A \emph{checked mode} performs checks for contracts that cannot be
 proved at compile-time.
 
 \begin{lstlisting}
@@ -138,29 +135,23 @@ invariants.
 Another approach is to define several checking levels, and specify for every
 check its level. This level could be numeric, so that any check with a level
 lower than a threshold is performed. This is also compatible to the levels
-provided in \cite{n4135} with a small set of levels.
+provided in \cite{n4135} with a small set of levels. 
 
-A \emph{checked implementation} will define the set of checking modes that
-can be used. A checking mode is given by a pair formed by a contract type (none,
-pre, post, all) and a checking level (rel, min, debug, safe). Any checked
-implementation should define, at least those levels and may decide to define
-additional levels and their associated behavior. For example, the checking mode
-\cppid{<all,safe>} will check all contracts, and the checking mode
-\cppid{<pre,min>} will check only minimal preconditions.
+As an example, this levels could be:
 
-This leads to the need of associating to a pre or post-condition its checking
-level.
-
-\begin{lstlisting}
-void f(int i) expects{i>0}; // Checked in non rel mode.
-void f(int i) expects<min>{i>0}; // As above
-void f(int i) expects<dbg>{i>0}; // Checked in dbg and safe modes
-void f(int i) expects<safe>{i>0}; // Checked only in safe mode
-\end{lstlisting}
+\begin{itemize}
+  \item \textbf{rel}: No checking performed at all.
+  \item \textbf{min}: Only critical checks are performed.
+  \item \textbf{dbg}: Most checks are performed. Suitable for debugging.
+  \item \textbf{safe}: All checks are performed, even the most costly ones.
+\end{itemize}
 
 It is important to remark that the checking mode affects to the client code when
 it is compiled. Different translation units may be compiled with different
 checking modes.
+
+In any case, how the level of a contract is specified needs further exploration 
+and is left in this paper as an open point.
 
 \subsection{The effects of a broken contract}
 
@@ -183,14 +174,13 @@ into the language.
 
 \end{itemize}
  
-For any checked mode, an implementation is required to perform at least the
-checks specified by the associated mode. However, an implementation is allowed
-to perform more checks than required. The behavior in response to a broken
+For any checked mode, an implementation is required to perform the
+checks specified by the associated mode. The behavior in response to a broken
 contract should be implementation defined.
 
 \subsubsection{Constraints on broken contracts behavior}
 
-A \emph{Checked implementation} needs to define its behavior when a checked
+A \emph{checked mode} needs to define its behavior when a checked
 contract is broken.
 
 Some choices for an implementation could include:

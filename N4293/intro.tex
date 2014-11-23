@@ -33,10 +33,9 @@ the answers from the committee to those questions.
 \subsection{Contracts programming for C++}
 
 The current situation regarding contracts is that they conceptually exist in
-libraries (including the standard library). Some contracts are documented while
-others simply are not documented at all. In terms of contract violations
-handling in some cases an exception is thrown while in other cases it leads to
-undefined behavior.
+libraries (including the standard library). Some contracts specify that
+exceptions should be thrown under certain conditions. However, other contracts
+just state that contract violation would lead to undefined behavior.
 
 As an example, in the standard library some operations define a wide contract
 (those having a well defined behavior for all calls), even though under certain
@@ -47,11 +46,14 @@ having a well defined behavior for a subset of all calls). Violation of such
 contracts leads to undefined behavior.
 
 It is important to stress that contracts include not only preconditions, but
-also postconditions, and invariants. Furthermore, the latter are as important as
-preconditions or even more.
+also postconditions, and invariants. Furthermore, the latter (specially postconditions) 
+are as important as preconditions or even more.
 
-A key difference between wide and narrow contracts is that while wide contracts
-are always checked, narrow contracts are not necessarily checked.
+In general, contracts describe essential properties of types. Those essential
+properties are not only the specification of valide states. They potentially could
+include complexity guarantees, thread safety, memory safety, \ldots While not all
+these essential properties can be easily integrated in a contract system, it should
+not be forgotten that they are also part of the contract.
 
 \ewgdirection{There was a great agreement that C++ should have support for
 contracts programming.}
@@ -90,7 +92,11 @@ specifications.
 A \textbf{library} approach (with language support) expresses contract
 assertions in the body of the functions. This makes contracts easy to deploy.
 However, contract validation is hidden into function bodies what makes much
-harder to compilers and other tools to reason about program behavior.	
+harder to compilers and other tools to reason about program behavior. It has been
+pointed out by John Lakos that still contracts could be supported by compiler magic
+so that signatures do not need to be changed. This seems feasible for \emph{templates}
+and \emph{inline} functions. However, this approach does not seem to be general
+without additional magic changes (e.g. some additional support from modules).	
 
 A \textbf{language} approach requires more profound language changes. And
 advantage of this approach is that contract validation may be part of the

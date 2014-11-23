@@ -41,9 +41,9 @@ class my_vector {
   double get_at(int i)
     expects{ valid_index(i) && valid_vec() };
 //...
-private:
   bool valid_index(i) const { return i>=0 && i<size; }
   bool valid_vec() const { return vec!=nullptr; }
+private:
   double * vec;
   int size;
 };
@@ -60,7 +60,7 @@ class string {
   //...
   void reserve(size_type res_arg = 0)
     expects{res_arg < max_size()}
-    ensures{capacity >= res_arg};
+    ensures{capacity() >= res_arg};
   //...
 };
 \end{lstlisting}
